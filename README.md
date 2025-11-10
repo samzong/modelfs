@@ -13,7 +13,7 @@
 |----------|---------------------------|-------|
 | `Model` | Maintain model metadata, track versions, and default sources | Anchor for other resources |
 | `ModelSource` | Validate and wrap external source configuration | Supports multiple protocols and auth schemes |
-| `ModelSync` | Schedule weight synchronisation jobs and coordinate PVC mounts | Triggers the dataset sync pipeline |
+| `ModelSync` | Schedule weight synchronization jobs and coordinate PVC mounts | Triggers the dataset sync pipeline |
 | `ModelReference` | Map models to target namespaces | Governs access scope and read-only policy |
 
 ## Architecture overview
