@@ -7,17 +7,25 @@ import (
 	modelv1 "github.com/samzong/modelfs/api/v1"
 )
 
-// ModelReconciler performs reconciliation for Model resources.
-type ModelReconciler struct{}
+// ModelReconciler tracks model resources and keeps the shared registry in sync.
+type ModelReconciler struct {
+	Registry *StaticRegistry
+}
 
-// Reconcile runs the reconciliation logic for a Model resource.
+// Reconcile records model metadata for downstream sync controllers.
 func (r *ModelReconciler) Reconcile(ctx context.Context, model modelv1.Model) error {
+	if r.Registry == nil {
+		return fmt.Errorf("model registry is not configured")
+	}
 	_ = ctx
-	fmt.Printf("Reconciling model %s/%s\n", model.Metadata.Namespace, model.Metadata.Name)
+	r.Registry.SetModel(model)
 	return nil
 }
 
-// Setup registers the reconciler with the supplied manager interface.
+// Setup currently initialises the registry for offline testing.
 func (r *ModelReconciler) Setup(_ any) error {
+	if r.Registry == nil {
+		r.Registry = NewStaticRegistry()
+	}
 	return nil
 }
