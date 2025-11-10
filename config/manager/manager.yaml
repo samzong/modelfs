@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: modelfs-controller-manager
+  namespace: modelfs-system
+spec:
+  selector:
+    matchLabels:
+      app: modelfs-controller-manager
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: modelfs-controller-manager
+    spec:
+      containers:
+        - name: manager
+          image: controller:latest
+          command:
+            - /manager
+          imagePullPolicy: IfNotPresent

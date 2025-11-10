@@ -1,0 +1,6 @@
+projectName: modelfs
+layout:
+- go.kubebuilder.io/v3
+repo: github.com/samzong/modelfs
+domain: samzong.dev
+owner: Samzong

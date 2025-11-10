@@ -1,0 +1,9 @@
+apiVersion: model.samzong.dev/v1
+kind: ModelSync
+metadata:
+  name: sample-sync
+spec:
+  modelRef: sample-model
+  sourceRef: sample-source
+  schedule: "@hourly"
+  retentionCount: 3
