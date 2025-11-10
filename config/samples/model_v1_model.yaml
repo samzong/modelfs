@@ -1,0 +1,7 @@
+apiVersion: model.samzong.dev/v1
+kind: Model
+metadata:
+  name: sample-model
+spec:
+  version: v1
+  sourceRef: sample-source

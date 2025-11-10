@@ -1,0 +1,8 @@
+apiVersion: model.samzong.dev/v1
+kind: ModelSource
+metadata:
+  name: sample-source
+spec:
+  type: inline
+  config:
+    url: https://example.com/model
