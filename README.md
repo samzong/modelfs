@@ -1,6 +1,6 @@
 # modelfs
 
-`modelfs` is a Kubernetes-native model weight management component built on top of [BaizeAI/dataset](https://github.com/BaizeAI/dataset). It focuses on declaratively publishing, synchronising, and reusing model weights across the cluster.
+`modelfs` is a Kubernetes-native model weight management component built on top of [BaizeAI/dataset](https://github.com/BaizeAI/dataset). It focuses on declaratively publishing, synchronizing, and reusing model weights across the cluster.
 
 ## Core capabilities
 - **Declarative model lifecycle**: custom resources `Model`, `ModelSource`, and `ModelSync` capture the model definition, provenance, and sync schedules.
