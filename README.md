@@ -1,12 +1,12 @@
 # modelfs
 
-`modelfs` is a Kubernetes-native model weight management component built on top of [BaizeAI/dataset](https://github.com/BaizeAI/dataset). It focuses on declaratively publishing, synchronizing, and reusing model weights across the cluster.
+`modelfs` is a Kubernetes-native model weight management component built on top of [BaizeAI/dataset](https://github.com/BaizeAI/dataset). It focuses on declaratively publishing, synchronizing, and reusing model weights across the cluster. Controllers communicate with the dataset control plane through a lightweight HTTP client located in `pkg/dataset`.
 
 ## Core capabilities
 - **Declarative model lifecycle**: custom resources `Model`, `ModelSource`, and `ModelSync` capture the model definition, provenance, and sync schedules.
-- **Data-plane reuse**: relies on BaizeAI/dataset for data loading and PVC warming to pull external model weights into persistent volumes inside the cluster.
-- **Multi-source sync**: one workflow handles Hugging Face, S3, HTTP, NFS, and other endpoints.
-- **Cross-namespace sharing**: `ModelReference` exposes cached models as read-only to other namespaces.
+- **Data-plane reuse**: relies on BaizeAI/dataset for data loading and PVC warming to pull external model weights into persistent volumes inside the cluster. `ModelSource` objects are mirrored into dataset using the HTTP integration.
+- **Multi-source sync**: one workflow handles Hugging Face, S3, HTTP, NFS, and other endpoints. The `ModelSync` controller resolves the referenced `Model` and `ModelSource` before issuing a dataset sync request.
+- **Cross-namespace sharing**: `ModelReference` exposes cached models as read-only to other namespaces. Each reference is validated against the local registry populated by the `Model` controller.
 
 ## Resources and controller responsibilities
 | Resource | Controller responsibility | Notes |
