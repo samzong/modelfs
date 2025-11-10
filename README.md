@@ -29,4 +29,4 @@
 - `config/`: Kubernetes manifests for CRDs, RBAC, webhooks, and samples.
 - `pkg/`: Reusable integrations with the dataset project and storage backends.
 
-Implementation will populate these directories with concrete controllers and docs over time.
+These directories will be populated with concrete controllers and docs over time.
