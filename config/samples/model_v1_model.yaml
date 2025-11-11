@@ -1,16 +1,35 @@
 apiVersion: model.samzong.dev/v1
 kind: Model
 metadata:
-  name: sample-model
+  name: qwen3
 spec:
-  sourceRef: sample-source
-  # versionConfigs 的 keys 就是版本列表
-  versionConfigs:
-    v1.0.0:
-      repo: username/model-v1
-      repoConfig:
-        revision: v1.0.0
-    v2.0.0:
-      repo: username/model-v2
-      repoConfig:
-        revision: main
+  sourceRef: huggingface-source
+  display:
+    description: "Qwen3 family models"
+    tags: ["qwen", "chat"]
+    logoURL: https://example.com/qwen-logo.png
+  versions:
+    - name: fp16
+      repo: qwen/Qwen3-7B
+      revision: main
+      precision: FP16
+      metadata:
+        tags: ["fp16", "full"]
+      storage:
+        accessModes: ["ReadWriteMany"]
+        resources:
+          requests:
+            storage: 12Ti
+        storageClassName: fast-rwx
+      state: PRESENT
+      share:
+        enabled: true
+        namespaceSelector:
+          matchLabels:
+            tenant: inference
+        requireOptInLabel: modelfs.samzong.dev/share-opt-in
+    - name: q4
+      repo: qwen/Qwen3-7B
+      revision: main
+      precision: INT4
+      state: ABSENT

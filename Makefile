@@ -2,6 +2,16 @@
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
+KIND_CLUSTER_NAME ?= modelfs
+KIND_CONFIG ?= hack/kind-config.yaml
+DATASET_NAMESPACE ?= dataset-system
+DATASET_REPO ?= https://github.com/BaizeAI/dataset.git
+DATASET_CLONE_DIR ?= third_party/dataset
+DATASET_RELEASE ?= dataset
+DATASET_HELM_CHART_DIR ?= $(DATASET_CLONE_DIR)/manifests/dataset
+MODEL_NAMESPACE ?= model-system
+HF_SECRET_NAME ?= hf-token
+HF_SECRET_KEY ?= token
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.28.0
 
@@ -27,6 +37,7 @@ $(LOCALBIN):
 KUBECTL ?= kubectl
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+HELM ?= helm
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.2.1
@@ -83,3 +94,63 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
+##@ kind + e2e helpers
+
+.PHONY: kind-up
+kind-up: ## Create a kind cluster with local-path storage
+	kind create cluster --name $(KIND_CLUSTER_NAME) --config $(KIND_CONFIG)
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
+
+.PHONY: kind-down
+kind-down: ## Delete the kind cluster
+	-kind delete cluster --name $(KIND_CLUSTER_NAME)
+
+.PHONY: kind-load-image
+kind-load-image: ## Load the controller image into kind
+	kind load docker-image $(IMG) --name $(KIND_CLUSTER_NAME)
+
+.PHONY: dataset-clone
+dataset-clone:
+	mkdir -p $(dir $(DATASET_CLONE_DIR))
+	@if [ -d "$(DATASET_CLONE_DIR)/.git" ]; then \
+	  git -C $(DATASET_CLONE_DIR) fetch --all --tags --prune && git -C $(DATASET_CLONE_DIR) pull --ff-only; \
+	else \
+	  git clone $(DATASET_REPO) $(DATASET_CLONE_DIR); \
+	fi
+
+.PHONY: dataset-install
+dataset-install: dataset-clone ## Install BaizeAI/dataset via bundled Helm chart
+	$(HELM) upgrade --install $(DATASET_RELEASE) $(DATASET_HELM_CHART_DIR) --namespace $(DATASET_NAMESPACE) --create-namespace $(if $(DATASET_HELM_VALUES),-f $(DATASET_HELM_VALUES),)
+
+.PHONY: dataset-uninstall
+dataset-uninstall: ## Uninstall BaizeAI/dataset
+	-$(HELM) uninstall $(DATASET_RELEASE) --namespace $(DATASET_NAMESPACE)
+
+.PHONY: modelfs-deploy-all
+modelfs-deploy-all: install deploy ## Install CRDs and deploy controller manifests
+
+.PHONY: modelfs-undeploy-all
+modelfs-undeploy-all: undeploy uninstall ## Remove controller and CRDs
+
+.PHONY: samples-secret
+samples-secret: ## Create HuggingFace token Secret in the model namespace (requires HF_TOKEN env)
+	@if [ -z "$(HF_TOKEN)" ]; then echo "HF_TOKEN env var is required" && exit 1; fi
+	$(KUBECTL) create namespace $(MODEL_NAMESPACE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
+	$(KUBECTL) -n $(MODEL_NAMESPACE) create secret generic $(HF_SECRET_NAME) --from-literal=$(HF_SECRET_KEY)="$(HF_TOKEN)" --dry-run=client -o yaml | $(KUBECTL) apply -f -
+
+.PHONY: samples-apply
+samples-apply: ## Apply sample ModelSource + Model manifests
+	$(KUBECTL) apply -f examples/samples/modelsource-hf.yaml
+	$(KUBECTL) apply -f examples/samples/model-qwen.yaml
+
+.PHONY: samples-delete
+samples-delete: ## Remove sample resources
+	-$(KUBECTL) delete -f examples/samples/model-qwen.yaml --ignore-not-found
+	-$(KUBECTL) delete -f examples/samples/modelsource-hf.yaml --ignore-not-found
+
+.PHONY: e2e-setup
+e2e-setup: kind-up dataset-install docker-build kind-load-image modelfs-deploy-all ## Bootstrap kind, dataset, build+load controller, deploy manifests
+
+.PHONY: e2e-sample
+e2e-sample: samples-secret samples-apply ## Create sample Secret/CRs for manual validation

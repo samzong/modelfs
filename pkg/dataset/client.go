@@ -10,123 +10,161 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Client exposes the minimal surface required by controllers to integrate with BaizeAI/dataset.
-type Client interface {
-	EnsureDataset(ctx context.Context, model modelv1.Model, source modelv1.ModelSource, sync modelv1.ModelSync) error
-	GetDatasetName(model modelv1.Model, sync modelv1.ModelSync) string
-}
-
-// KubernetesClient talks to dataset CRD via Kubernetes API.
-type KubernetesClient struct {
-	client client.Client
-}
-
-// NewKubernetesClient creates a Kubernetes-backed dataset client.
-func NewKubernetesClient(c client.Client) *KubernetesClient {
-	return &KubernetesClient{client: c}
-}
-
-// GetDatasetName returns the name of the Dataset CR for a given Model and ModelSync.
-// Uses the version specified in ModelSync.
-func (c *KubernetesClient) GetDatasetName(model modelv1.Model, sync modelv1.ModelSync) string {
-	return fmt.Sprintf("%s-%s", model.Name, sync.Spec.Version)
-}
-
-// EnsureDataset creates or updates a Dataset CR that corresponds to the ModelSync.
-func (c *KubernetesClient) EnsureDataset(ctx context.Context, model modelv1.Model, source modelv1.ModelSource, sync modelv1.ModelSync) error {
-	version := sync.Spec.Version
-
-	// Convert ModelSource to DatasetSource (with version-specific config)
-	datasetSource, err := convertModelSourceToDatasetSource(source, model, version)
-	if err != nil {
-		return fmt.Errorf("convert model source: %w", err)
-	}
-
-	// Build URI from Model repo (version-specific or default) and ModelSource config
-	uri, err := buildDatasetURI(source, model, version)
-	if err != nil {
-		return fmt.Errorf("build dataset URI: %w", err)
-	}
-
-	datasetSource.URI = uri
-
-	// Create or update Dataset CR
-	gvk := modelv1.GroupVersion.WithKind("ModelSync")
-	dataset := &datasetv1alpha1.Dataset{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", model.Name, version),
-			Namespace: sync.Namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(&sync, gvk),
-			},
-		},
-		Spec: datasetv1alpha1.DatasetSpec{
-			Source: *datasetSource,
-			VolumeClaimTemplate: corev1.PersistentVolumeClaim{
-				Spec: corev1.PersistentVolumeClaimSpec{
-					AccessModes: []corev1.PersistentVolumeAccessMode{
-						corev1.ReadWriteMany,
-					},
-					Resources: corev1.VolumeResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceStorage: resource.MustParse("100Ti"),
-						},
-					},
-				},
-			},
-		},
-	}
-
-	existing := &datasetv1alpha1.Dataset{}
-	err = c.client.Get(ctx, client.ObjectKeyFromObject(dataset), existing)
-	if err != nil {
-		if client.IgnoreNotFound(err) == nil {
-			// Create new dataset
-			return c.client.Create(ctx, dataset)
-		}
-		return err
-	}
-
-	// Update existing dataset
-	existing.Spec = dataset.Spec
-	return c.client.Update(ctx, existing)
-}
-
-func convertModelSourceToDatasetSource(source modelv1.ModelSource, model modelv1.Model, version string) (*datasetv1alpha1.DatasetSource, error) {
+// BuildDatasetSpec builds a DatasetSpec from a ModelVersion and ModelSource.
+// It reads the Secret referenced by ModelSource.secretRef and merges options (if secretRef is provided).
+func BuildDatasetSpec(ctx context.Context, c client.Client, version modelv1.ModelVersion, source modelv1.ModelSource, namespace string) (*datasetv1alpha1.DatasetSpec, error) {
+	// Convert source type
 	datasetType, err := convertSourceType(source.Spec.Type)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get version-specific config (must exist)
-	versionConfig, exists := model.Spec.VersionConfigs[version]
-	if !exists {
-		return nil, fmt.Errorf("version %s not found in model versionConfigs", version)
-	}
-
-	// Merge ModelSource config (connection/auth info + common config like include/exclude) with Model repoConfig
+	// Merge options: ModelSource config + Secret data (if secretRef is provided)
 	options := make(map[string]string)
-
-	// First, copy ModelSource config (connection/auth info + common config)
 	for k, v := range source.Spec.Config {
 		options[k] = v
 	}
-
-	// Then, merge Model versionConfig.repoConfig (repo-specific config like revision)
-	// Note: Model.repoConfig can override ModelSource config if needed
-	if versionConfig.RepoConfig != nil {
-		for k, v := range versionConfig.RepoConfig {
-			options[k] = v
+	// Add Secret data as options (if secretRef is provided)
+	if source.Spec.SecretRef != "" {
+		secret := &corev1.Secret{}
+		secretKey := types.NamespacedName{Namespace: namespace, Name: source.Spec.SecretRef}
+		if err := c.Get(ctx, secretKey, secret); err != nil {
+			return nil, fmt.Errorf("get secret %s: %w", source.Spec.SecretRef, err)
+		}
+		for k, v := range secret.Data {
+			options[k] = string(v)
 		}
 	}
 
-	return &datasetv1alpha1.DatasetSource{
+	// Build URI from repo and revision
+	uri, err := buildDatasetURI(source, version)
+	if err != nil {
+		return nil, fmt.Errorf("build URI: %w", err)
+	}
+
+	// Build DatasetSource
+	datasetSource := datasetv1alpha1.DatasetSource{
 		Type:    datasetType,
+		URI:     uri,
 		Options: options,
+	}
+
+	// Build VolumeClaimTemplate from ModelVolumeSpec
+	var volumeClaimTemplate corev1.PersistentVolumeClaim
+	if version.Storage != nil {
+		volumeClaimTemplate = corev1.PersistentVolumeClaim{
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes: version.Storage.AccessModes,
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: version.Storage.Resources.Requests,
+					Limits:   version.Storage.Resources.Limits,
+				},
+				StorageClassName: version.Storage.StorageClassName,
+			},
+		}
+	} else {
+		// Default: ReadWriteMany, 100Ti
+		volumeClaimTemplate = corev1.PersistentVolumeClaim{
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes: []corev1.PersistentVolumeAccessMode{
+					corev1.ReadWriteMany,
+				},
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: mustParseResourceQuantity("100Ti"),
+					},
+				},
+			},
+		}
+	}
+
+	return &datasetv1alpha1.DatasetSpec{
+		Source:              datasetSource,
+		VolumeClaimTemplate: volumeClaimTemplate,
 	}, nil
+}
+
+// EnsureDataset creates or updates a Dataset CR.
+func EnsureDataset(ctx context.Context, c client.Client, name, namespace string, spec *datasetv1alpha1.DatasetSpec, ownerRef *metav1.OwnerReference) error {
+	dataset := &datasetv1alpha1.Dataset{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: *spec,
+	}
+	if ownerRef != nil {
+		dataset.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+	}
+
+	existing := &datasetv1alpha1.Dataset{}
+	key := types.NamespacedName{Name: name, Namespace: namespace}
+	err := c.Get(ctx, key, existing)
+	if err != nil {
+		if client.IgnoreNotFound(err) == nil {
+			// Create new dataset
+			return c.Create(ctx, dataset)
+		}
+		return err
+	}
+
+	// Update existing dataset (patch spec)
+	existing.Spec = *spec
+	return c.Update(ctx, existing)
+}
+
+// EnsureReferenceDataset creates or updates a REFERENCE Dataset in the target namespace.
+func EnsureReferenceDataset(ctx context.Context, c client.Client, sourceNs, sourceDatasetName, targetNs, targetName string, labels map[string]string) error {
+	uri := fmt.Sprintf("dataset://%s/%s", sourceNs, sourceDatasetName)
+	dataset := &datasetv1alpha1.Dataset{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      targetName,
+			Namespace: targetNs,
+			Labels:    labels,
+		},
+		Spec: datasetv1alpha1.DatasetSpec{
+			Source: datasetv1alpha1.DatasetSource{
+				Type: datasetv1alpha1.DatasetTypeReference,
+				URI:  uri,
+			},
+		},
+	}
+
+	existing := &datasetv1alpha1.Dataset{}
+	key := types.NamespacedName{Name: targetName, Namespace: targetNs}
+	err := c.Get(ctx, key, existing)
+	if err != nil {
+		if client.IgnoreNotFound(err) == nil {
+			return c.Create(ctx, dataset)
+		}
+		return err
+	}
+
+	// Update existing reference dataset
+	existing.Spec = dataset.Spec
+	if existing.Labels == nil {
+		existing.Labels = make(map[string]string)
+	}
+	for k, v := range labels {
+		existing.Labels[k] = v
+	}
+	return c.Update(ctx, existing)
+}
+
+// GetDatasetName returns the Dataset name for a model version.
+// Format: mdl-<model>-<version>
+func GetDatasetName(modelName, versionName string) string {
+	return fmt.Sprintf("mdl-%s-%s", modelName, versionName)
+}
+
+// GetReferenceDatasetName returns the REFERENCE Dataset name for sharing.
+// Format: share-<source-ns>-<model>-<version>
+func GetReferenceDatasetName(sourceNs, modelName, versionName string) string {
+	return fmt.Sprintf("share-%s-%s-%s", sourceNs, modelName, versionName)
 }
 
 func convertSourceType(modelType string) (datasetv1alpha1.DatasetType, error) {
@@ -154,21 +192,11 @@ func convertSourceType(modelType string) (datasetv1alpha1.DatasetType, error) {
 	}
 }
 
-func buildDatasetURI(source modelv1.ModelSource, model modelv1.Model, version string) (string, error) {
-	// Get version-specific config (must exist)
-	versionConfig, exists := model.Spec.VersionConfigs[version]
-	if !exists {
-		return "", fmt.Errorf("version %s not found in model versionConfigs", version)
-	}
-
-	repo := versionConfig.Repo
-	repoConfig := versionConfig.RepoConfig
-
-	// Extract URI from version-specific repoConfig if provided
-	if repoConfig != nil {
-		if uri, ok := repoConfig["uri"]; ok {
-			return uri, nil
-		}
+func buildDatasetURI(source modelv1.ModelSource, version modelv1.ModelVersion) (string, error) {
+	repo := version.Repo
+	revision := version.Revision
+	if revision == "" {
+		revision = "main"
 	}
 
 	// Extract URI from ModelSource config if provided
@@ -176,29 +204,34 @@ func buildDatasetURI(source modelv1.ModelSource, model modelv1.Model, version st
 		return uri, nil
 	}
 
-	// Build URI based on type, using version-specific repo
+	// Build URI based on type
 	switch source.Spec.Type {
 	case "HTTP", "S3", "GIT":
-		// For these types, repo can be the URL
 		if repo != "" {
 			return repo, nil
 		}
-		// Fallback to config url
 		if urlStr, ok := source.Spec.Config["url"]; ok {
 			return urlStr, nil
 		}
-		return "", fmt.Errorf("missing repo in Model versionConfig[%s] or url in ModelSource config for type %s", version, source.Spec.Type)
+		return "", fmt.Errorf("missing repo in ModelVersion or url in ModelSource config for type %s", source.Spec.Type)
 	case "HUGGING_FACE":
 		if repo == "" {
-			return "", fmt.Errorf("missing repo in Model versionConfig[%s] for HuggingFace", version)
+			return "", fmt.Errorf("missing repo in ModelVersion for HuggingFace")
 		}
-		return fmt.Sprintf("huggingface://%s", repo), nil
+		uri := fmt.Sprintf("huggingface://%s", repo)
+		if revision != "main" {
+			uri = fmt.Sprintf("%s@%s", uri, revision)
+		}
+		return uri, nil
 	case "MODEL_SCOPE":
 		if repo == "" {
-			return "", fmt.Errorf("missing repo in Model versionConfig[%s] for ModelScope", version)
+			return "", fmt.Errorf("missing repo in ModelVersion for ModelScope")
 		}
-		// ModelScope repo format: namespace/model
-		return fmt.Sprintf("modelscope://%s", repo), nil
+		uri := fmt.Sprintf("modelscope://%s", repo)
+		if revision != "main" {
+			uri = fmt.Sprintf("%s@%s", uri, revision)
+		}
+		return uri, nil
 	case "PVC":
 		if pvcName, ok := source.Spec.Config["pvcName"]; ok {
 			path := repo
@@ -230,4 +263,12 @@ func buildDatasetURI(source modelv1.ModelSource, model modelv1.Model, version st
 	default:
 		return "", fmt.Errorf("cannot build URI for type %s", source.Spec.Type)
 	}
+}
+
+func mustParseResourceQuantity(s string) resource.Quantity {
+	q, err := resource.ParseQuantity(s)
+	if err != nil {
+		panic(fmt.Sprintf("invalid quantity %s: %v", s, err))
+	}
+	return q
 }
