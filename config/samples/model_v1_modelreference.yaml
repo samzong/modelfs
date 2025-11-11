@@ -1,8 +1,0 @@
-apiVersion: model.samzong.dev/v1
-kind: ModelReference
-metadata:
-  name: sample-reference
-spec:
-  modelName: sample-model
-  version: v1
-  alias: production

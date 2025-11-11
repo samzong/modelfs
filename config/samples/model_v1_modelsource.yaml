@@ -1,13 +1,12 @@
 apiVersion: model.samzong.dev/v1
 kind: ModelSource
 metadata:
-  name: sample-source
+  name: huggingface-source
 spec:
   type: HUGGING_FACE
+  secretRef: hf-token  # References a Secret in the same namespace
   config:
-    # Connection/auth configuration (no repo info here)
+    # Source-specific configuration (keys must be supported by DatasetType)
     endpoint: https://huggingface.co  # Optional: custom endpoint
-    # token: <your-token>              # Optional: auth token (use Secret reference in production)
-    # Common configuration (file filtering rules)
     include: "*.safetensors,*.json"   # Common: file patterns to include
     exclude: "*.bin"                  # Common: file patterns to exclude

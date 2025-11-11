@@ -23,7 +23,12 @@ type ModelSourceSpec struct {
 	// +kubebuilder:validation:Enum=GIT;S3;HTTP;PVC;NFS;CONDA;REFERENCE;HUGGING_FACE;MODEL_SCOPE
 	Type string `json:"type"`
 	// +kubebuilder:validation:Optional
+	// SecretRef references a Secret in the same namespace containing credentials for this source.
+	// Optional for public models (e.g., HuggingFace public repos).
+	SecretRef string `json:"secretRef,omitempty"`
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:pruning:PreserveUnknownFields
+	// Config contains source-specific configuration. Keys must be supported by the DatasetType.
 	Config map[string]string `json:"config,omitempty"`
 }
 
@@ -31,6 +36,9 @@ type ModelSourceSpec struct {
 type ModelSourceStatus struct {
 	// +kubebuilder:validation:Optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	// +kubebuilder:validation:Optional
+	// ReferencedBy lists Model names that reference this ModelSource (namespace/name format).
+	ReferencedBy []string `json:"referencedBy,omitempty"`
 }
 
 // +kubebuilder:object:root=true

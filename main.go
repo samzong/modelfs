@@ -19,9 +19,10 @@ import (
 	datasetv1alpha1 "github.com/BaizeAI/dataset/api/dataset/v1alpha1"
 	modelv1 "github.com/samzong/modelfs/api/v1"
 	"github.com/samzong/modelfs/controllers"
-	"github.com/samzong/modelfs/pkg/dataset"
 	//+kubebuilder:scaffold:imports
 )
+
+//+kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=create;get;list;update
 
 var (
 	scheme   = runtime.NewScheme()
@@ -64,10 +65,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Setup registry and dataset client
-	registry := controllers.NewKubernetesRegistry(mgr.GetClient())
-	datasetClient := dataset.NewKubernetesClient(mgr.GetClient())
-
 	// Setup controllers
 	if err = (&controllers.ModelReconciler{
 		Client: mgr.GetClient(),
@@ -82,25 +79,6 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ModelSource")
-		os.Exit(1)
-	}
-
-	if err = (&controllers.ModelSyncReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Dataset:  datasetClient,
-		Registry: registry,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ModelSync")
-		os.Exit(1)
-	}
-
-	if err = (&controllers.ModelReferenceReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Registry: registry,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ModelReference")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

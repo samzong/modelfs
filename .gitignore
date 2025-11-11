@@ -22,6 +22,9 @@ go.work
 bin/
 tmp/
 
+# External dependencies cloned locally
+third_party/dataset/
+
 # Generated manifests
 config/crd/bases/
 config/rbac/role.yaml
@@ -79,4 +82,3 @@ build/
 *.temp
 tmp/
 temp/
-

@@ -1,0 +1,27 @@
+apiVersion: model.samzong.dev/v1
+kind: Model
+metadata:
+  name: qwen3
+  namespace: model-system
+spec:
+  sourceRef: huggingface-source
+  display:
+    description: "Sample Qwen sync via modelfs"
+    tags:
+      - qwen
+      - sample
+  versions:
+    - name: fp16
+      repo: qwen/Qwen2.5-0.5B
+      revision: main
+      precision: FP16
+      storage:
+        accessModes:
+          - ReadWriteMany
+        resources:
+          requests:
+            storage: 12Gi
+        storageClassName: local-path
+      state: PRESENT
+      share:
+        enabled: false

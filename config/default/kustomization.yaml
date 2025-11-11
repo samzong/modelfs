@@ -5,5 +5,4 @@ resources:
   - ../crd
   - ../rbac
   - ../manager
-  - ../namespace.yaml
-
+  - namespace.yaml

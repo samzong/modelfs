@@ -16,6 +16,4 @@ var (
 func init() {
 	SchemeBuilder.Register(&Model{}, &ModelList{})
 	SchemeBuilder.Register(&ModelSource{}, &ModelSourceList{})
-	SchemeBuilder.Register(&ModelSync{}, &ModelSyncList{})
-	SchemeBuilder.Register(&ModelReference{}, &ModelReferenceList{})
 }

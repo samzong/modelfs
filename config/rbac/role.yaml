@@ -5,6 +5,45 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumes
+  verbs:
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - get
+  - list
+  - update
+- apiGroups:
   - dataset.baizeai.io
   resources:
   - datasets
@@ -17,12 +56,24 @@ rules:
   - update
   - watch
 - apiGroups:
+  - dataset.baizeai.io
+  resources:
+  - datasets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - dataset.baizeai.io
+  resources:
+  - datasets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - model.samzong.dev
   resources:
-  - modelreferences
   - models
   - modelsources
-  - modelsyncs
   verbs:
   - create
   - delete
@@ -34,19 +85,15 @@ rules:
 - apiGroups:
   - model.samzong.dev
   resources:
-  - modelreferences/finalizers
   - models/finalizers
   - modelsources/finalizers
-  - modelsyncs/finalizers
   verbs:
   - update
 - apiGroups:
   - model.samzong.dev
   resources:
-  - modelreferences/status
   - models/status
   - modelsources/status
-  - modelsyncs/status
   verbs:
   - get
   - patch
