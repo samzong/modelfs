@@ -1,32 +1,116 @@
 # modelfs
 
-`modelfs` is a Kubernetes-native model weight management component built on top of [BaizeAI/dataset](https://github.com/BaizeAI/dataset). It focuses on declaratively publishing, synchronizing, and reusing model weights across the cluster. Controllers communicate with the dataset control plane through a lightweight HTTP client located in `pkg/dataset`.
+`modelfs` is a Kubernetes operator for declarative llm model weight management, built on [BaizeAI/dataset](https://github.com/BaizeAI/dataset).
 
-## Core capabilities
-- **Declarative model lifecycle**: custom resources `Model`, `ModelSource`, and `ModelSync` capture the model definition, provenance, and sync schedules.
-- **Data-plane reuse**: relies on BaizeAI/dataset for data loading and PVC warming to pull external model weights into persistent volumes inside the cluster. `ModelSource` objects are mirrored into dataset using the HTTP integration.
-- **Multi-source sync**: one workflow handles Hugging Face, S3, HTTP, NFS, and other endpoints. The `ModelSync` controller resolves the referenced `Model` and `ModelSource` before issuing a dataset sync request.
-- **Cross-namespace sharing**: `ModelReference` exposes cached models as read-only to other namespaces. Each reference is validated against the local registry populated by the `Model` controller.
+## Core Concepts
 
-## Resources and controller responsibilities
-| Resource | Controller responsibility | Notes |
-|----------|---------------------------|-------|
-| `Model` | Maintain model metadata, track versions, and default sources | Anchor for other resources |
-| `ModelSource` | Validate and wrap external source configuration | Supports multiple protocols and auth schemes |
-| `ModelSync` | Schedule weight synchronization jobs and coordinate PVC mounts | Triggers the dataset sync pipeline |
-| `ModelReference` | Map models to target namespaces | Governs access scope and read-only policy |
+### ModelSource
 
-## Architecture overview
-1. Operators declare models, sources, and sync policies via CRDs.
-2. Controllers watch resource changes and call BaizeAI/dataset to fetch and cache weights.
-3. Once synced, weights are surfaced through PVCs for inference or training workloads.
-4. Optional `ModelReference` resources let other namespaces reuse cached models.
+Defines connection information and common configurations (e.g., authentication, file filters) for a model source. Can be reused by multiple models.
 
-## Code layout
-> Directory names follow Kubebuilder project conventions.
-- `api/`: CRD structs and schema definitions.
-- `controllers/`: Reconciliation logic for each resource, bridging to the dataset sync.
-- `config/`: Kubernetes manifests for CRDs, RBAC, webhooks, and samples.
-- `pkg/`: Reusable integrations with the dataset project and storage backends.
+**Supported source types**: `HUGGING_FACE`, `MODEL_SCOPE`, `S3`, `HTTP`, `GIT`, `PVC`, `NFS`, `CONDA`, `REFERENCE`
 
-These directories will be populated with concrete controllers and docs over time.
+### Model
+
+Defines a model with multiple versions. Each version has its own repository path and configuration. The version list is derived from the keys of `versionConfigs`.
+
+**Key fields**:
+
+- `sourceRef`: References a `ModelSource` for connection/auth info
+- `versionConfigs`: Map of version names to version-specific configs (repo, repoConfig)
+
+### ModelSync
+
+Triggers synchronization for a specific version of a model. Creates and manages `Dataset` CRs through BaizeAI/dataset.
+
+**Key fields**:
+
+- `modelRef`: References a `Model` (ModelSource is resolved from `Model.sourceRef`)
+- `version`: Version to sync (must exist in `Model.versionConfigs`)
+
+### ModelReference
+
+Enables cross-namespace sharing of cached models as read-only references.
+
+## Quick Start
+
+1. **Install BaizeAI/dataset** (required dependency):
+
+   ```bash
+   # Follow BaizeAI/dataset installation instructions
+   ```
+
+2. **Install modelfs**:
+
+   ```bash
+   kubectl apply -k config/default
+   ```
+
+3. **Create a ModelSource**:
+
+   ```yaml
+   apiVersion: model.samzong.dev/v1
+   kind: ModelSource
+   metadata:
+     name: huggingface-source
+   spec:
+     type: HUGGING_FACE
+     config:
+       endpoint: https://huggingface.co
+       include: "*.safetensors,*.json"
+       exclude: "*.bin"
+   ```
+
+4. **Create a Model**:
+
+   ```yaml
+   apiVersion: model.samzong.dev/v1
+   kind: Model
+   metadata:
+     name: qwen-model
+   spec:
+     sourceRef: huggingface-source
+     versionConfigs:
+       v2.5.0:
+         repo: qwen/Qwen2.5-7B-Instruct
+         repoConfig:
+           revision: main
+   ```
+
+5. **Create a ModelSync**:
+   ```yaml
+   apiVersion: model.samzong.dev/v1
+   kind: ModelSync
+   metadata:
+     name: qwen-sync
+   spec:
+     modelRef: qwen-model
+     version: v2.5.0
+   ```
+
+## Architecture
+
+```
+User creates:
+  ModelSource (connection/auth) → Model (versions + repos) → ModelSync (trigger sync)
+                                                                    ↓
+modelfs Controller creates:                                    Dataset CR
+                                                                    ↓
+BaizeAI/dataset Controller:                                 Downloads weights
+                                                                    ↓
+                                                              PVC ready for use
+```
+
+## Integration with BaizeAI/dataset
+
+- `modelfs` controllers directly create and manage `Dataset` CRs via Kubernetes API
+- Each `ModelSync` creates a `Dataset` CR named `{model-name}-{version}`
+- `ModelSync` status mirrors `Dataset` status (phase, conditions, last sync time)
+- Dataset reconciliation is handled by BaizeAI/dataset controllers
+
+## Project Structure
+
+- `api/v1/`: CRD type definitions (`Model`, `ModelSource`, `ModelSync`, `ModelReference`)
+- `controllers/`: Reconciliation logic for each CRD
+- `pkg/dataset/`: Client for creating/managing `Dataset` CRs
+- `config/`: Kubernetes manifests (CRDs, RBAC, samples)
