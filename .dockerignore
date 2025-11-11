@@ -1,0 +1,26 @@
+# Binaries
+bin/
+*.test
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# Build artifacts
+dist/
+build/
+*.tar.gz

@@ -3,6 +3,11 @@ kind: ModelSource
 metadata:
   name: sample-source
 spec:
-  type: inline
+  type: HUGGING_FACE
   config:
-    url: https://example.com/model
+    # Connection/auth configuration (no repo info here)
+    endpoint: https://huggingface.co  # Optional: custom endpoint
+    # token: <your-token>              # Optional: auth token (use Secret reference in production)
+    # Common configuration (file filtering rules)
+    include: "*.safetensors,*.json"   # Common: file patterns to include
+    exclude: "*.bin"                  # Common: file patterns to exclude

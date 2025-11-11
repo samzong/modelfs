@@ -1,0 +1,82 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# Kubebuilder generated files
+# Binaries
+bin/
+tmp/
+
+# Generated manifests
+config/crd/bases/
+config/rbac/role.yaml
+config/webhook/manifests.yaml
+
+# Controller-gen output
+*.yaml.bak
+
+# IDE - VSCode
+.vscode/
+*.code-workspace
+
+# IDE - GoLand
+.idea/
+*.iml
+
+# IDE - Vim
+*.swp
+*.swo
+*~
+
+# OS - macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# OS - Linux
+*~
+.directory
+.Trash-*
+
+# OS - Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Build artifacts
+dist/
+build/
+*.tar.gz
+*.zip
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
