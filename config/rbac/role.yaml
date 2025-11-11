@@ -1,5 +1,53 @@
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: modelfs-manager-role
-rules: []
+  name: manager-role
+rules:
+- apiGroups:
+  - dataset.baizeai.io
+  resources:
+  - datasets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - model.samzong.dev
+  resources:
+  - modelreferences
+  - models
+  - modelsources
+  - modelsyncs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - model.samzong.dev
+  resources:
+  - modelreferences/finalizers
+  - models/finalizers
+  - modelsources/finalizers
+  - modelsyncs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - model.samzong.dev
+  resources:
+  - modelreferences/status
+  - models/status
+  - modelsources/status
+  - modelsyncs/status
+  verbs:
+  - get
+  - patch
+  - update

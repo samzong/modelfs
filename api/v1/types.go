@@ -1,19 +1,21 @@
 package v1
 
-import "time"
+import (
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/scheme"
+)
 
-// ObjectMeta stores minimal metadata needed for configuration testing without the broader Kubernetes API surface.
-type ObjectMeta struct {
-	Name      string            `json:"name"`
-	Namespace string            `json:"namespace"`
-	Labels    map[string]string `json:"labels,omitempty"`
-}
+// GroupVersion identifies the API group and version for model resources.
+var (
+	GroupVersion       = schema.GroupVersion{Group: "model.samzong.dev", Version: "v1"}
+	SchemeGroupVersion = GroupVersion
+	SchemeBuilder      = &scheme.Builder{GroupVersion: GroupVersion}
+	AddToScheme        = SchemeBuilder.AddToScheme
+)
 
-// Condition describes the observed state of a resource.
-type Condition struct {
-	Type               string    `json:"type"`
-	Status             string    `json:"status"`
-	LastTransitionTime time.Time `json:"lastTransitionTime"`
-	Reason             string    `json:"reason,omitempty"`
-	Message            string    `json:"message,omitempty"`
+func init() {
+	SchemeBuilder.Register(&Model{}, &ModelList{})
+	SchemeBuilder.Register(&ModelSource{}, &ModelSourceList{})
+	SchemeBuilder.Register(&ModelSync{}, &ModelSyncList{})
+	SchemeBuilder.Register(&ModelReference{}, &ModelReferenceList{})
 }

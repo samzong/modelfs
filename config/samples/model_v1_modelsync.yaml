@@ -4,6 +4,6 @@ metadata:
   name: sample-sync
 spec:
   modelRef: sample-model
-  sourceRef: sample-source
+  version: v1.0.0  # Required: must be one of the versions defined in Model.spec.versionConfigs
   schedule: "@hourly"
   retentionCount: 3

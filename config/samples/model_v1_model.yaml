@@ -3,5 +3,14 @@ kind: Model
 metadata:
   name: sample-model
 spec:
-  version: v1
   sourceRef: sample-source
+  # versionConfigs 的 keys 就是版本列表
+  versionConfigs:
+    v1.0.0:
+      repo: username/model-v1
+      repoConfig:
+        revision: v1.0.0
+    v2.0.0:
+      repo: username/model-v2
+      repoConfig:
+        revision: main
