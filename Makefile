@@ -112,15 +112,19 @@ kind-load-image: ## Load the controller image into kind
 
 .PHONY: dataset-clone
 dataset-clone:
-	mkdir -p $(dir $(DATASET_CLONE_DIR))
 	@if [ -d "$(DATASET_CLONE_DIR)/.git" ]; then \
-	  git -C $(DATASET_CLONE_DIR) fetch --all --tags --prune && git -C $(DATASET_CLONE_DIR) pull --ff-only; \
+	  echo "Dataset submodule already exists, updating..."; \
+	  git submodule update --init --recursive $(DATASET_CLONE_DIR); \
 	else \
-	  git clone $(DATASET_REPO) $(DATASET_CLONE_DIR); \
+	  echo "Initializing dataset submodule..."; \
+	  git submodule update --init --recursive $(DATASET_CLONE_DIR); \
 	fi
 
 .PHONY: dataset-install
-dataset-install: dataset-clone ## Install BaizeAI/dataset via bundled Helm chart
+dataset-install: dataset-clone ## Install BaizeAI/dataset CRDs and Helm chart
+	@echo "Installing Dataset CRDs..."
+	$(KUBECTL) apply -f $(DATASET_CLONE_DIR)/config/crd/bases/dataset.baizeai.io_datasets.yaml
+	@echo "Installing Dataset Helm chart..."
 	$(HELM) upgrade --install $(DATASET_RELEASE) $(DATASET_HELM_CHART_DIR) --namespace $(DATASET_NAMESPACE) --create-namespace $(if $(DATASET_HELM_VALUES),-f $(DATASET_HELM_VALUES),)
 
 .PHONY: dataset-uninstall
@@ -140,12 +144,12 @@ samples-secret: ## Create HuggingFace token Secret in the model namespace (requi
 	$(KUBECTL) -n $(MODEL_NAMESPACE) create secret generic $(HF_SECRET_NAME) --from-literal=$(HF_SECRET_KEY)="$(HF_TOKEN)" --dry-run=client -o yaml | $(KUBECTL) apply -f -
 
 .PHONY: samples-apply
-samples-apply: ## Apply sample ModelSource + Model manifests
+samples-apply: ## Apply sample ModelSource + Model manifests to current namespace
 	$(KUBECTL) apply -f examples/samples/modelsource-hf.yaml
 	$(KUBECTL) apply -f examples/samples/model-qwen.yaml
 
 .PHONY: samples-delete
-samples-delete: ## Remove sample resources
+samples-delete: ## Remove sample resources from current namespace
 	-$(KUBECTL) delete -f examples/samples/model-qwen.yaml --ignore-not-found
 	-$(KUBECTL) delete -f examples/samples/modelsource-hf.yaml --ignore-not-found
 
@@ -153,4 +157,4 @@ samples-delete: ## Remove sample resources
 e2e-setup: kind-up dataset-install docker-build kind-load-image modelfs-deploy-all ## Bootstrap kind, dataset, build+load controller, deploy manifests
 
 .PHONY: e2e-sample
-e2e-sample: samples-secret samples-apply ## Create sample Secret/CRs for manual validation
+e2e-sample: samples-apply ## Create sample ModelSource and Model CRs for manual validation

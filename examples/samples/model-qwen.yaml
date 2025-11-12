@@ -2,7 +2,6 @@ apiVersion: model.samzong.dev/v1
 kind: Model
 metadata:
   name: qwen3
-  namespace: model-system
 spec:
   sourceRef: huggingface-source
   display:
@@ -17,7 +16,9 @@ spec:
       precision: FP16
       storage:
         accessModes:
-          - ReadWriteMany
+          # NOTE: local-path storage class only supports ReadWriteOnce
+          # ReadWriteMany when use NFS
+          - ReadWriteOnce
         resources:
           requests:
             storage: 12Gi

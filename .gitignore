@@ -23,7 +23,7 @@ bin/
 tmp/
 
 # External dependencies cloned locally
-third_party/dataset/
+# third_party/dataset/ is now a git submodule, don't ignore it
 
 # Generated manifests
 config/crd/bases/
