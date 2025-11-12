@@ -47,8 +47,6 @@ release:
   mode: replace
   header: |
     ## {{ .ProjectName }} {{ .Tag }}
-    
-    {{ .Changelog }}
   footer: |
     ---
     
@@ -56,12 +54,22 @@ release:
 
 # Changelog configuration
 changelog:
+  use: github
   sort: asc
   filters:
     exclude:
       - "^docs:"
       - "^test:"
       - "^chore:"
+  groups:
+    - title: Features
+      regexp: "^.*feat.*$"
+      order: 0
+    - title: Bug Fixes
+      regexp: "^.*fix.*$"
+      order: 10
+    - title: Other Changes
+      order: 999
 
 # Snapshots configuration
 snapshot: {}
