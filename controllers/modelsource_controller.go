@@ -84,7 +84,7 @@ func (r *ModelSourceReconciler) handleDeletion(ctx context.Context, source *mode
 		// Block deletion: update status with referencedBy
 		referencedBy := make([]string, 0, len(models))
 		for _, m := range models {
-			referencedBy = append(referencedBy, fmt.Sprintf("%s/%s", m.Namespace, m.Name))
+			referencedBy = append(referencedBy, formatNamespacedName(m.Namespace, m.Name))
 		}
 		status := source.Status.DeepCopy()
 		status.ReferencedBy = referencedBy
@@ -210,23 +210,4 @@ func (r *ModelSourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&modelv1.ModelSource{}).
 		Complete(r)
-}
-
-func containsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
-func removeString(slice []string, s string) []string {
-	var result []string
-	for _, item := range slice {
-		if item != s {
-			result = append(result, item)
-		}
-	}
-	return result
 }

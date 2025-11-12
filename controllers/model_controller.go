@@ -324,10 +324,7 @@ func (r *ModelReconciler) reconcileVersionSharing(ctx context.Context, model *mo
 	}
 
 	// Create REFERENCE Datasets
-	labels := map[string]string{
-		"modelfs.samzong.dev/model":   fmt.Sprintf("%s/%s", model.Namespace, model.Name),
-		"modelfs.samzong.dev/version": version.Name,
-	}
+	labels := buildModelLabels(model.Namespace, model.Name, version.Name)
 
 	for _, ns := range namespaces {
 		if ns == model.Namespace {
@@ -396,10 +393,8 @@ func splitOptInLabel(s string) []string {
 func (r *ModelReconciler) cleanupVersionSharing(ctx context.Context, model *modelv1.Model, versionName string) error {
 	// Find all REFERENCE Datasets with matching labels
 	datasetList := &datasetv1alpha1.DatasetList{}
-	labelSelector := client.MatchingLabels{
-		"modelfs.samzong.dev/model":   fmt.Sprintf("%s/%s", model.Namespace, model.Name),
-		"modelfs.samzong.dev/version": versionName,
-	}
+	labels := buildModelLabels(model.Namespace, model.Name, versionName)
+	labelSelector := client.MatchingLabels(labels)
 	if err := r.List(ctx, datasetList, labelSelector); err != nil {
 		return err
 	}
@@ -418,8 +413,10 @@ func (r *ModelReconciler) cleanupVersionSharing(ctx context.Context, model *mode
 func (r *ModelReconciler) deleteReferenceDatasets(ctx context.Context, model *modelv1.Model) error {
 	// Find all REFERENCE Datasets with matching labels
 	datasetList := &datasetv1alpha1.DatasetList{}
+	// Note: version is empty for model-level cleanup
+	labels := buildModelLabels(model.Namespace, model.Name, "")
 	labelSelector := client.MatchingLabels{
-		"modelfs.samzong.dev/model": fmt.Sprintf("%s/%s", model.Namespace, model.Name),
+		"modelfs.samzong.dev/model": labels["modelfs.samzong.dev/model"],
 	}
 	if err := r.List(ctx, datasetList, labelSelector); err != nil {
 		return err

@@ -2,10 +2,10 @@ apiVersion: model.samzong.dev/v1
 kind: ModelSource
 metadata:
   name: huggingface-source
-  namespace: model-system
 spec:
   type: HUGGING_FACE
-  secretRef: hf-token
+  # secretRef is optional for public HuggingFace models
+  # secretRef: hf-token
   config:
-    endpoint: https://huggingface.co
+    endpoint: https://hf-mirror.com
     include: "*.safetensors"

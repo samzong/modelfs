@@ -12,25 +12,18 @@ Defines connection information and common configurations (e.g., authentication, 
 
 ### Model
 
-Defines a model with multiple versions. Each version has its own repository path and configuration. The version list is derived from the keys of `versionConfigs`.
+Defines a model with multiple versions. Each version has its own repository path, storage configuration, and sharing settings.
 
 **Key fields**:
 
 - `sourceRef`: References a `ModelSource` for connection/auth info
-- `versionConfigs`: Map of version names to version-specific configs (repo, repoConfig)
-
-### ModelSync
-
-Triggers synchronization for a specific version of a model. Creates and manages `Dataset` CRs through BaizeAI/dataset.
-
-**Key fields**:
-
-- `modelRef`: References a `Model` (ModelSource is resolved from `Model.sourceRef`)
-- `version`: Version to sync (must exist in `Model.versionConfigs`)
-
-### ModelReference
-
-Enables cross-namespace sharing of cached models as read-only references.
+- `versions`: List of model versions, each with:
+  - `name`: Version identifier
+  - `repo`: Repository path (e.g., `qwen/Qwen2.5-7B-Instruct`)
+  - `revision`: Git revision (default: `main`)
+  - `storage`: PVC configuration (access modes, size, storage class)
+  - `state`: `PRESENT` (sync) or `ABSENT` (delete)
+  - `share`: Cross-namespace sharing configuration
 
 ## Quick Start
 
@@ -70,47 +63,46 @@ Enables cross-namespace sharing of cached models as read-only references.
      name: qwen-model
    spec:
      sourceRef: huggingface-source
-     versionConfigs:
-       v2.5.0:
+     versions:
+       - name: v2.5.0
          repo: qwen/Qwen2.5-7B-Instruct
-         repoConfig:
-           revision: main
-   ```
-
-5. **Create a ModelSync**:
-   ```yaml
-   apiVersion: model.samzong.dev/v1
-   kind: ModelSync
-   metadata:
-     name: qwen-sync
-   spec:
-     modelRef: qwen-model
-     version: v2.5.0
+         revision: main
+         precision: FP16
+         storage:
+           accessModes:
+             - ReadWriteOnce
+           resources:
+             requests:
+               storage: 50Gi
+           storageClassName: local-path
+         state: PRESENT
    ```
 
 ## Architecture
 
 ```
 User creates:
-  ModelSource (connection/auth) → Model (versions + repos) → ModelSync (trigger sync)
-                                                                    ↓
-modelfs Controller creates:                                    Dataset CR
-                                                                    ↓
-BaizeAI/dataset Controller:                                 Downloads weights
-                                                                    ↓
-                                                              PVC ready for use
+  ModelSource (connection/auth) → Model (versions + repos)
+                                         ↓
+modelfs Controller creates:      Dataset CR per version
+                                         ↓
+BaizeAI/dataset Controller:      Downloads weights
+                                         ↓
+                                   PVC ready for use
 ```
 
 ## Integration with BaizeAI/dataset
 
 - `modelfs` controllers directly create and manage `Dataset` CRs via Kubernetes API
-- Each `ModelSync` creates a `Dataset` CR named `{model-name}-{version}`
-- `ModelSync` status mirrors `Dataset` status (phase, conditions, last sync time)
+- Each `Model` version creates a `Dataset` CR named `mdl-{model-name}-{version-name}`
+- `Model` status aggregates `Dataset` status (phase, conditions, PVC name, last sync time)
 - Dataset reconciliation is handled by BaizeAI/dataset controllers
+- Cross-namespace sharing uses REFERENCE Dataset type
 
 ## Project Structure
 
-- `api/v1/`: CRD type definitions (`Model`, `ModelSource`, `ModelSync`, `ModelReference`)
-- `controllers/`: Reconciliation logic for each CRD
+- `api/v1/`: CRD type definitions (`Model`, `ModelSource`)
+- `controllers/`: Reconciliation logic for Model and ModelSource CRDs
 - `pkg/dataset/`: Client for creating/managing `Dataset` CRs
 - `config/`: Kubernetes manifests (CRDs, RBAC, samples)
+- `examples/`: Sample manifests for common use cases

@@ -3,4 +3,3 @@ kind: Kustomization
 resources:
   - bases/model.samzong.dev_models.yaml
   - bases/model.samzong.dev_modelsources.yaml
-  - bases/dataset.baizeai.io_datasets.yaml
