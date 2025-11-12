@@ -65,8 +65,8 @@ run:
 build: generate ## Build manager binary.
 	go build -o bin/manager ./main.go
 
-docker-build: ## Build docker image with the manager.
-	$(CONTAINER_TOOL) build -t ${IMG} .
+docker-build: ## Build docker image with the manager (for local development).
+	$(CONTAINER_TOOL) build -f Dockerfile.dev -t ${IMG} .
 
 docker-push: ## Push docker image with the manager.
 	$(CONTAINER_TOOL) push ${IMG}

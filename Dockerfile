@@ -1,25 +1,16 @@
-# Build the manager binary
-FROM --platform=$BUILDPLATFORM golang:1.25 as builder
-ARG TARGETOS
+# Dockerfile for GoReleaser builds
+# GoReleaser builds binaries separately and places them in linux/${TARGETARCH}/manager
+# This Dockerfile only copies the pre-built binary for optimal image size and build speed
+FROM gcr.io/distroless/static:nonroot
+ARG TARGETPLATFORM
 ARG TARGETARCH
 
-WORKDIR /workspace
-# Copy the Go Modules manifests
-COPY go.mod go.mod
-COPY go.sum go.sum
-# cache deps before building and copying source so that we don't need to re-download as much
-# and so that source changes don't invalidate our downloaded layer
-RUN go mod download
-
-COPY . .
-
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -ldflags "-s -w" -a -o ./manager ./main.go
-
-# Use distroless as minimal base image to package the manager binary
-# Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
 WORKDIR /app
-COPY --from=builder /workspace/manager .
+
+# Copy pre-built binary from GoReleaser build context
+# GoReleaser ensures linux/${TARGETARCH}/manager exists before building
+COPY linux/${TARGETARCH}/manager /app/manager
+
 USER 65532:65532
 
 ENTRYPOINT ["/app/manager"]
