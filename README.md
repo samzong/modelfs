@@ -25,18 +25,29 @@ Defines a model with multiple versions. Each version has its own repository path
   - `state`: `PRESENT` (sync) or `ABSENT` (delete)
   - `share`: Cross-namespace sharing configuration
 
+## Prerequisites
+
+- Kubernetes 1.28+
+- Helm 3.0+
+- BaizeAI/dataset operator installed (CRDs and controller)
+
 ## Quick Start
 
 1. **Install BaizeAI/dataset** (required dependency):
 
    ```bash
-   # Follow BaizeAI/dataset installation instructions
+   # Install Dataset CRDs and controller
+   # See BaizeAI/dataset installation instructions
    ```
 
-2. **Install modelfs**:
+2. **Install modelfs using Helm**:
 
    ```bash
-   kubectl apply -k config/default
+   # Install from local chart
+   helm install modelfs ./charts/modelfs
+
+   # Or install with custom values
+   helm install modelfs ./charts/modelfs -f my-values.yaml
    ```
 
 3. **Create a ModelSource**:
@@ -99,10 +110,49 @@ BaizeAI/dataset Controller:      Downloads weights
 - Dataset reconciliation is handled by BaizeAI/dataset controllers
 - Cross-namespace sharing uses REFERENCE Dataset type
 
+## Installation
+
+### Using Helm Chart
+
+The recommended way to install modelfs is using the Helm chart:
+
+```bash
+# Install with default values (creates modelfs-system namespace)
+helm install modelfs ./charts/modelfs --namespace modelfs-system --create-namespace
+
+# Install with custom image
+helm install modelfs ./charts/modelfs \
+  --namespace modelfs-system \
+  --create-namespace \
+  --set image.repository=my-registry/modelfs-controller \
+  --set image.tag=v0.1.0
+
+# Install without creating namespace (use existing namespace)
+helm install modelfs ./charts/modelfs \
+  --namespace existing-namespace \
+  --set namespace.create=false \
+  --set namespace.name=existing-namespace
+```
+
+### Local Development
+
+For local development, use the Makefile targets:
+
+```bash
+# Build and install using Helm
+make helm-install
+
+# Uninstall
+make helm-uninstall
+
+# Lint chart
+make helm-lint
+```
+
 ## Project Structure
 
 - `api/v1/`: CRD type definitions (`Model`, `ModelSource`)
 - `controllers/`: Reconciliation logic for Model and ModelSource CRDs
 - `pkg/dataset/`: Client for creating/managing `Dataset` CRs
-- `config/`: Kubernetes manifests (CRDs, RBAC, samples)
+- `charts/modelfs/`: Helm chart for deploying modelfs
 - `examples/`: Sample manifests for common use cases

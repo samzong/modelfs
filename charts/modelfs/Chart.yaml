@@ -1,0 +1,17 @@
+apiVersion: v2
+name: modelfs
+description: A Helm chart for modelfs Kubernetes operator
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - kubernetes
+  - operator
+  - model
+  - machine-learning
+home: https://github.com/samzong/modelfs
+maintainers:
+  - name: modelfs maintainers
+sources:
+  - https://github.com/samzong/modelfs
+
