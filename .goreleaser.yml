@@ -1,4 +1,3 @@
-# GoReleaser configuration for modelfs
 version: 2
 
 project_name: modelfs
