@@ -3,10 +3,16 @@
 # Declare variables to be passed into your templates.
 
 # Image configuration
+# Image configuration
+global:
+  image:
+    registry: ghcr.io/samzong
+    tag: ""
+
 image:
   registry: ""
-  repository: controller
-  tag: latest
+  repository: modelfs
+  tag: ""
   pullPolicy: IfNotPresent
 
 # Namespace configuration
@@ -90,8 +96,8 @@ ui:
   replicaCount: 1
   image:
     registry: ""
-    repository: ui-server
-    tag: latest
+    repository: modelfs-ui-server
+    tag: ""
     pullPolicy: IfNotPresent
   serviceAccount:
     create: true

@@ -17,7 +17,7 @@ spec:
       serviceAccountName: {{ default (printf "%s-ui" (include "modelfs.name" .)) .Values.ui.serviceAccount.name }}
       containers:
         - name: ui-server
-          image: {{ if .Values.ui.image.registry }}{{ .Values.ui.image.registry }}/{{ end }}{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}
+          image: {{- $reg := (or .Values.ui.image.registry .Values.global.image.registry) -}}{{- $tag := (or .Values.ui.image.tag .Values.global.image.tag .Chart.AppVersion) -}}{{ if $reg }}{{ $reg }}/{{ end }}{{ .Values.ui.image.repository }}:{{ $tag }}
           imagePullPolicy: {{ .Values.ui.image.pullPolicy }}
           ports:
             - containerPort: {{ .Values.ui.service.port }}
@@ -31,4 +31,3 @@ spec:
               value: {{ $e.value | quote }}
             {{- end }}
 {{- end -}}
-

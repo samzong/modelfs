@@ -71,12 +71,14 @@ Create the namespace
 Create the full image name
 */}}
 {{- define "modelfs.image" -}}
-{{- if .Values.image.registry }}
-{{- printf "%s/%s:%s" .Values.image.registry .Values.image.repository (.Values.image.tag | default .Chart.AppVersion) }}
-{{- else }}
-{{- printf "%s:%s" .Values.image.repository (.Values.image.tag | default .Chart.AppVersion) }}
-{{- end }}
-{{- end }}
+{{- $reg := (or .Values.image.registry .Values.global.image.registry) -}}
+{{- $tag := (or .Values.image.tag .Values.global.image.tag .Chart.AppVersion) -}}
+{{- if $reg -}}
+{{- printf "%s/%s:%s" $reg .Values.image.repository $tag -}}
+{{- else -}}
+{{- printf "%s:%s" .Values.image.repository $tag -}}
+{{- end -}}
+{{- end -}}
 
 {{/*
 Create the manager role name
@@ -84,4 +86,3 @@ Create the manager role name
 {{- define "modelfs.managerRoleName" -}}
 {{- default "manager-role" .Values.rbac.roleName }}
 {{- end }}
-
