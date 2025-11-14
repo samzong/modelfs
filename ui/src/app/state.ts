@@ -8,7 +8,12 @@ interface UiState {
 }
 
 export const useUiState = create<UiState>((set) => ({
-  namespace: (typeof window !== "undefined" && window.localStorage.getItem("modelfs_ns")) || "model-system",
+  namespace: (() => {
+    if (typeof window !== "undefined" && (window as any).localStorage && typeof (window as any).localStorage.getItem === "function") {
+      return (window as any).localStorage.getItem("modelfs_ns") || "model-system";
+    }
+    return "model-system";
+  })(),
   setNamespace: (ns) => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem("modelfs_ns", ns);

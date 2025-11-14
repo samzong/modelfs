@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import * as Select from "@radix-ui/react-select";
 import Card from "@components/Card";
 import Button from "@components/Button";
 import SectionHeader from "@components/SectionHeader";
-import { modelSources, models, modelDetails } from "@mocks/data";
+import { models, modelDetails } from "@mocks/data";
 import { useDataStore } from "@app/dataStore";
+import { useUiState } from "@app/state";
 
 type VersionInput = {
   name: string;
@@ -23,14 +25,22 @@ export default function ModelWizardPage() {
 
   const [step, setStep] = useState<number>(1);
   const [name, setName] = useState<string>(isEdit ? maybeName : "");
-  const [namespace, setNamespace] = useState<string>(maybeNs);
+  const ns = useUiState((s) => s.namespace);
+  const setNs = useUiState((s) => s.setNamespace);
   const [sourceRef, setSourceRef] = useState<string>("");
   const [tags, setTags] = useState<string[]>([]);
   const [description, setDescription] = useState<string>("");
   const [versions, setVersions] = useState<VersionInput[]>([{ name: "", repo: "", desiredState: "PRESENT", shareEnabled: false }]);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const { namespaces, refreshNamespaces } = useDataStore();
+  const { namespaces, sources, refreshNamespaces, refreshAll } = useDataStore();
   useEffect(() => { refreshNamespaces(); }, []);
+  useEffect(() => { refreshAll(ns); }, [ns]);
+  useEffect(() => {
+    const list = sources.filter((s) => s.namespace === ns);
+    if (!sourceRef && list.length) {
+      setSourceRef(list[0].name);
+    }
+  }, [sources, ns]);
 
   const canNext1 = name.trim() !== "" && sourceRef.trim() !== "";
   const canNext2 = versions.length > 0 && versions.every(v => v.name.trim() !== "" && v.repo.trim() !== "");
@@ -56,7 +66,7 @@ export default function ModelWizardPage() {
   function save() {
     const summary = {
       name,
-      namespace,
+      namespace: ns,
       sourceRef,
       tags,
       versionsReady: 0,
@@ -75,8 +85,8 @@ export default function ModelWizardPage() {
         datasetPhase: "PENDING" as const,
       }))
     };
-    const key = `${namespace}/${name}`;
-    const idx = models.findIndex(m => m.namespace === namespace && m.name === name);
+    const key = `${ns}/${name}`;
+    const idx = models.findIndex(m => m.namespace === ns && m.name === name);
     if (idx >= 0) {
       models[idx] = summary as any;
       (modelDetails as any)[key] = detail as any;
@@ -87,6 +97,7 @@ export default function ModelWizardPage() {
     window.location.href = "/models";
   }
 
+  const sourcesFiltered = useMemo(() => sources.filter((s) => s.namespace === ns), [sources, ns]);
   return (
     <div className="space-y-4">
       <SectionHeader title={isEdit ? "编辑模型" : "创建模型"} description="三步完成模型创建或编辑" />
@@ -101,19 +112,38 @@ export default function ModelWizardPage() {
                 </div>
                 <div className="flex-1">
                   <label htmlFor="model-ns" className="block text-sm text-gray-600 mb-1">命名空间</label>
-                  <select id="model-ns" className="form-select w-full" value={namespace} onChange={(e) => setNamespace(e.target.value)}>
-                    {namespaces.map((n) => (
-                      <option key={n.name} value={n.name}>{n.name}</option>
-                    ))}
-                  </select>
+                  <Select.Root value={ns} onValueChange={setNs}>
+                    <Select.Trigger id="model-ns" className="border px-3 h-10 rounded-lg w-full text-left">
+                      <Select.Value placeholder={ns} />
+                    </Select.Trigger>
+                    <Select.Content className="bg-white border rounded-lg shadow z-50">
+                      <Select.Viewport>
+                        {namespaces.map((n) => (
+                          <Select.Item key={n.name} value={n.name} className="px-3 py-2">
+                            <Select.ItemText>{n.name}</Select.ItemText>
+                          </Select.Item>
+                        ))}
+                      </Select.Viewport>
+                    </Select.Content>
+                  </Select.Root>
                 </div>
               </div>
               <div>
                 <label htmlFor="model-src" className="block text-sm text-gray-600 mb-1">来源（SourceRef）</label>
-                <input id="model-src" list="ms-list" className="form-input w-full" value={sourceRef} onChange={(e) => setSourceRef(e.target.value)} />
-                <datalist id="ms-list">
-                  {modelSources.map(ms => (<option key={ms.name} value={ms.name} />))}
-                </datalist>
+                <Select.Root value={sourceRef} onValueChange={setSourceRef}>
+                  <Select.Trigger id="model-src" className="border px-3 h-10 rounded-lg w-full text-left">
+                    <Select.Value placeholder={sourceRef || "请选择来源"} />
+                  </Select.Trigger>
+                  <Select.Content className="bg-white border rounded-lg shadow z-50">
+                    <Select.Viewport>
+                      {sourcesFiltered.map((ms) => (
+                        <Select.Item key={ms.name} value={ms.name} className="px-3 py-2">
+                          <Select.ItemText>{ms.name}</Select.ItemText>
+                        </Select.Item>
+                      ))}
+                    </Select.Viewport>
+                  </Select.Content>
+                </Select.Root>
               </div>
               <div>
                 <label htmlFor="model-desc" className="block text-sm text-gray-600 mb-1">描述</label>
@@ -162,7 +192,7 @@ export default function ModelWizardPage() {
               <pre className="bg-muted p-3 rounded-lg text-sm overflow-auto">{JSON.stringify({
                 apiVersion: "model.samzong.dev/v1",
                 kind: "Model",
-                metadata: { name, namespace, labels: tags.reduce((acc, t) => ({ ...acc, [t]: "true" }), {}) },
+                metadata: { name, namespace: ns, labels: tags.reduce((acc, t) => ({ ...acc, [t]: "true" }), {}) },
                 spec: { sourceRef, versions },
               }, null, 2)}</pre>
             </div>
