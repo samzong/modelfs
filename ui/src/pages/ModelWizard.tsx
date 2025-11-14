@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Card from "@components/Card";
 import Button from "@components/Button";
 import SectionHeader from "@components/SectionHeader";
 import { modelSources, models, modelDetails } from "@mocks/data";
+import { useDataStore } from "@app/dataStore";
 
 type VersionInput = {
   name: string;
@@ -28,6 +29,8 @@ export default function ModelWizardPage() {
   const [description, setDescription] = useState<string>("");
   const [versions, setVersions] = useState<VersionInput[]>([{ name: "", repo: "", desiredState: "PRESENT", shareEnabled: false }]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const { namespaces, refreshNamespaces } = useDataStore();
+  useEffect(() => { refreshNamespaces(); }, []);
 
   const canNext1 = name.trim() !== "" && sourceRef.trim() !== "";
   const canNext2 = versions.length > 0 && versions.every(v => v.name.trim() !== "" && v.repo.trim() !== "");
@@ -98,7 +101,11 @@ export default function ModelWizardPage() {
                 </div>
                 <div className="flex-1">
                   <label htmlFor="model-ns" className="block text-sm text-gray-600 mb-1">命名空间</label>
-                  <input id="model-ns" className="form-input w-full" value={namespace} onChange={(e) => setNamespace(e.target.value)} />
+                  <select id="model-ns" className="form-select w-full" value={namespace} onChange={(e) => setNamespace(e.target.value)}>
+                    {namespaces.map((n) => (
+                      <option key={n.name} value={n.name}>{n.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div>

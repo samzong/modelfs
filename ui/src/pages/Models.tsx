@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-import { models, modelDetails } from "@mocks/data";
+import { useMemo, useState, useEffect } from "react";
 import Badge from "@components/Badge";
 import Button from "@components/Button";
 import Card from "@components/Card";
@@ -7,23 +6,27 @@ import SectionHeader from "@components/SectionHeader";
 import { useUiState } from "@app/state";
 import { Link } from "@tanstack/react-router";
 import ConfirmDialog from "@components/ConfirmDialog";
+import { useDataStore } from "@app/dataStore";
+import ErrorBanner from "@components/ErrorBanner";
+import { client } from "@api/client";
 
 export default function ModelsPage() {
   const filterText = useUiState((s) => s.filterText);
   const setFilterText = useUiState((s) => s.setFilterText);
   const ns = useUiState((s) => s.namespace);
-  const [refresh, setRefresh] = useState(0);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
-  const filtered = useMemo(() => models.filter((m) => m.namespace === ns && (!filterText || m.name.includes(filterText) || m.tags?.some((t) => t.includes(filterText)))), [ns, filterText, refresh]);
+  const { models, errors, refreshAll, attachSSE, removeModelLocal } = useDataStore();
+  useEffect(() => {
+    refreshAll(ns);
+    const close = attachSSE(ns);
+    return () => close();
+  }, [ns]);
+  const filtered = useMemo(() => models.filter((m) => m.namespace === ns && (!filterText || m.name.includes(filterText) || m.tags?.some((t) => t.includes(filterText)))), [ns, filterText, models]);
   function onDelete(name: string) { setPendingDelete(name); }
   function confirmDelete() {
     if (!pendingDelete) return;
-    const idx = models.findIndex(m => m.namespace === ns && m.name === pendingDelete);
-    if (idx >= 0) {
-      models.splice(idx, 1);
-      delete (modelDetails as any)[`${ns}/${pendingDelete}`];
-      setRefresh(x => x + 1);
-    }
+    client.deleteModel(ns, pendingDelete).catch(() => {});
+    removeModelLocal(ns, pendingDelete);
     setPendingDelete(null);
   }
   function cancelDelete() { setPendingDelete(null); }
@@ -33,6 +36,7 @@ export default function ModelsPage() {
       <div className="toolbar">
         <input className="form-input w-72" placeholder="筛选名称或标签" value={filterText} onChange={(e) => setFilterText(e.target.value)} />
       </div>
+      <ErrorBanner items={errors} />
       <Card>
         <table className="min-w-full">
           <thead>
