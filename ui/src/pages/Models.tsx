@@ -32,27 +32,27 @@ export default function ModelsPage() {
   function cancelDelete() { setPendingDelete(null); }
   return (
     <div className="space-y-4">
-      <SectionHeader title="Models" description="命名空间内的模型清单" right={<Link to="/models/wizard"><Button variant="primary">创建</Button></Link>} />
+      <SectionHeader title="Models" description="Models in Namespace" right={<Link to="/models/wizard"><Button variant="primary">Create</Button></Link>} />
       <div className="toolbar">
-        <input className="form-input w-72" placeholder="筛选名称或标签" value={filterText} onChange={(e) => setFilterText(e.target.value)} />
+        <input className="form-input w-72" placeholder="Filter by name or tag" value={filterText} onChange={(e) => setFilterText(e.target.value)} />
       </div>
       <ErrorBanner items={errors} />
       <Card>
         <table className="min-w-full">
           <thead>
             <tr className="text-left text-sm text-gray-500">
-              <th className="p-2">名称</th>
-              <th className="p-2">来源</th>
-              <th className="p-2">版本</th>
-              <th className="p-2">最近同步</th>
-              <th className="p-2">状态</th>
-              <th className="p-2">标签</th>
-              <th className="p-2">操作</th>
+              <th className="p-2">Name</th>
+              <th className="p-2">Source</th>
+              <th className="p-2">Version</th>
+              <th className="p-2">Last Sync</th>
+              <th className="p-2">Status</th>
+              <th className="p-2">Tags</th>
+              <th className="p-2">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td className="p-6 text-gray-500" colSpan={7}>暂无数据</td></tr>
+              <tr><td className="p-6 text-gray-500" colSpan={7}>No Data</td></tr>
             ) : filtered.map((m, idx) => (
               <tr key={`${m.namespace}/${m.name}`} className={idx % 2 === 0 ? "bg-white" : "bg-muted"}>
                 <td className="p-2">
@@ -70,12 +70,12 @@ export default function ModelsPage() {
               <td className="p-2">
                   <div className="flex gap-2">
                     <Link to={`/models/${m.namespace}/${m.name}`}>
-                      <Button size="sm" variant="outline">查看</Button>
+                      <Button size="sm" variant="outline">View</Button>
                     </Link>
                     <Link to={`/models/${m.namespace}/${m.name}/edit`}>
-                      <Button size="sm" variant="secondary">编辑</Button>
+                      <Button size="sm" variant="secondary">Edit</Button>
                     </Link>
-                    <Button size="sm" variant="danger" onClick={() => onDelete(m.name)}>删除</Button>
+                    <Button size="sm" variant="danger" onClick={() => onDelete(m.name)}>Delete</Button>
                   </div>
               </td>
               </tr>
@@ -83,7 +83,7 @@ export default function ModelsPage() {
           </tbody>
         </table>
       </Card>
-      <ConfirmDialog open={!!pendingDelete} title={`删除模型 ${pendingDelete || ""}`} description="此操作将移除模型及其详情（Mock）。" onConfirm={confirmDelete} onCancel={cancelDelete} />
+      <ConfirmDialog open={!!pendingDelete} title={`Delete Model ${pendingDelete || ""}`} description="This operation removes the model and its details (Mock)." onConfirm={confirmDelete} onCancel={cancelDelete} />
     </div>
   );
 }

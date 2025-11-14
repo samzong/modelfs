@@ -16,22 +16,22 @@ export default function ModelSourceDetailPage() {
       .catch((e) => { setErr(String(e)); setDetail(null); })
       .finally(() => setLoading(false));
   }, [ns, name]);
-  if (loading) return <div className="card p-4">加载中...</div>;
+  if (loading) return <div className="card p-4">Loading...</div>;
   if (err) return <div className="card p-4 text-red-600">{err}</div>;
-  if (!detail) return <div className="card p-4">无数据</div>;
+  if (!detail) return <div className="card p-4">No Data</div>;
   return (
     <div className="space-y-4">
       <Card>
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-2xl font-semibold">{detail.name}</h2>
-            <p className="text-gray-600">命名空间：{detail.namespace}</p>
+            <p className="text-gray-600">Namespace: {detail.namespace}</p>
           </div>
-          <a href={`/modelsources/${detail.namespace}/${detail.name}/edit`} className="px-3 py-1 rounded-lg border">编辑</a>
+          <a href={`/modelsources/${detail.namespace}/${detail.name}/edit`} className="px-3 py-1 rounded-lg border">Edit</a>
         </div>
       </Card>
       <Card>
-        <h3 className="text-lg font-semibold mb-2">配置</h3>
+        <h3 className="text-lg font-semibold mb-2">Config</h3>
         <pre className="bg-muted p-3 rounded-lg text-sm overflow-auto">{JSON.stringify(detail.spec, null, 2)}</pre>
       </Card>
     </div>

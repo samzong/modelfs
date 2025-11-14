@@ -10,12 +10,11 @@ export default function ConfirmDialog({ open, title, description, onConfirm, onC
           <Dialog.Title className="text-lg font-semibold mb-2">{title}</Dialog.Title>
           {description ? <Dialog.Description className="text-sm text-gray-600 mb-4">{description}</Dialog.Description> : null}
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onCancel}>取消</Button>
-            <Button variant="danger" onClick={onConfirm}>确认删除</Button>
+            <Button variant="outline" onClick={onCancel}>Cancel</Button>
+            <Button variant="danger" onClick={onConfirm}>Confirm Delete</Button>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   );
 }
-

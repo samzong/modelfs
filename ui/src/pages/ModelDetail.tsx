@@ -12,7 +12,7 @@ export default function ModelDetailPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [tab, setTab] = useState<"info"|"yaml">("info");
   const yaml = useMemo(() => (detail ? toYAML(detail) : ""), [detail]);
-  if (!detail) return <div className="card p-4">加载中...</div>;
+  if (!detail) return <div className="card p-4">Loading...</div>;
   return (
     <div className="space-y-4">
       <Card>
@@ -23,7 +23,7 @@ export default function ModelDetailPage() {
           </div>
           <div className="flex items-center gap-2">
             <Badge phase={detail.summary.status} />
-            <a href={`/models/${detail.summary.namespace}/${detail.summary.name}/edit`} className="px-3 py-1 rounded-lg border">编辑</a>
+            <a href={`/models/${detail.summary.namespace}/${detail.summary.name}/edit`} className="px-3 py-1 rounded-lg border">Edit</a>
           </div>
         </div>
         {detail.summary.tags?.length ? (
@@ -36,9 +36,9 @@ export default function ModelDetailPage() {
       </Card>
       <Card>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-semibold">版本</h3>
+          <h3 className="text-lg font-semibold">Versions</h3>
           <div className="flex gap-2">
-            <button className={`px-3 py-1 rounded ${tab === "info" ? "bg-primary-600 text-white" : "bg-muted"}`} onClick={() => setTab("info")}>信息</button>
+            <button className={`px-3 py-1 rounded ${tab === "info" ? "bg-primary-600 text-white" : "bg-muted"}`} onClick={() => setTab("info")}>Info</button>
             <button className={`px-3 py-1 rounded ${tab === "yaml" ? "bg-primary-600 text-white" : "bg-muted"}`} onClick={() => setTab("yaml")}>YAML</button>
           </div>
         </div>
@@ -49,13 +49,13 @@ export default function ModelDetailPage() {
         <table className="min-w-full">
           <thead>
             <tr className="text-left text-sm text-gray-500">
-              <th className="p-2">版本</th>
+              <th className="p-2">Version</th>
               <th className="p-2">Repo</th>
-              <th className="p-2">期望</th>
-              <th className="p-2">分享</th>
+              <th className="p-2">Expectation</th>
+              <th className="p-2">Share</th>
               <th className="p-2">Dataset</th>
               <th className="p-2">PVC</th>
-              <th className="p-2">存储(观测)</th>
+              <th className="p-2">Storage (Observability)</th>
             </tr>
           </thead>
           <tbody>
@@ -64,7 +64,7 @@ export default function ModelDetailPage() {
                 <td className="p-2">{v.name}</td>
                 <td className="p-2">{v.repo}</td>
                 <td className="p-2">{v.desiredState}</td>
-                <td className="p-2">{v.shareEnabled ? "启用" : "关闭"}</td>
+                <td className="p-2">{v.shareEnabled ? "Enabled" : "Disabled"}</td>
                 <td className="p-2">{v.datasetPhase}</td>
                 <td className="p-2">{v.pvcName || "-"}</td>
                 <td className="p-2">{v.observedStorage || "-"}</td>
@@ -74,7 +74,7 @@ export default function ModelDetailPage() {
         </table>
         {expanded ? (
           <div className="mt-3 border rounded-lg p-3">
-            <div className="text-sm text-gray-700">版本详情</div>
+            <div className="text-sm text-gray-700">Version Details</div>
             <pre className="bg-muted p-2 rounded text-xs overflow-auto">{JSON.stringify(detail.versions.find(v => v.name === expanded), null, 2)}</pre>
             <div className="text-xs text-gray-600 mt-2">kubectl -n {detail.summary.namespace} get pvc {detail.versions.find(v => v.name === expanded)?.pvcName || "-"}</div>
           </div>
