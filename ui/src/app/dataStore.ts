@@ -8,6 +8,7 @@ type State = {
   sources: ModelSourceSummary[];
   errors: ErrorBanner[];
   namespaces: NamespaceInfo[];
+  datasets: Array<{ name: string; namespace: string; phase: string; pvcName?: string; lastSync: string }>;
   loading: boolean;
   refreshAll: (ns: string) => Promise<void>;
   refreshNamespaces: () => Promise<void>;
@@ -20,16 +21,18 @@ export const useDataStore = create<State>((set, get) => ({
   sources: [],
   errors: [],
   namespaces: [],
+  datasets: [],
   loading: false,
   refreshAll: async (ns: string) => {
     set({ loading: true });
     try {
-      const [ml, src, err] = await Promise.all([
+      const [ml, src, err, ds] = await Promise.all([
         client.listModels(ns),
         client.listModelSources(ns),
         client.listErrors(ns),
+        client.listDatasets(ns),
       ]);
-      set({ models: ml?.items ?? [], sources: src?.items ?? [], errors: err?.items ?? [] });
+      set({ models: ml?.items ?? [], sources: src?.items ?? [], errors: err?.items ?? [], datasets: ds?.items ?? [] });
     } catch {
     } finally {
       set({ loading: false });
@@ -57,6 +60,13 @@ export const useDataStore = create<State>((set, get) => ({
       else if (idx >= 0) items[idx] = payload;
       else if (action === "added") items.unshift(payload);
       set({ sources: items });
+    } else if (resource === "datasets") {
+      const items = st.datasets.slice();
+      const idx = items.findIndex(d => d.namespace === payload.namespace && d.name === payload.name);
+      if (action === "deleted" && idx >= 0) items.splice(idx, 1);
+      else if (idx >= 0) items[idx] = payload;
+      else if (action === "added") items.unshift(payload);
+      set({ datasets: items });
     }
   }),
   removeModelLocal: (ns: string, name: string) => {

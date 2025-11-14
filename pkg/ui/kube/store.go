@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	datasetv1alpha1 "github.com/BaizeAI/dataset/api/dataset/v1alpha1"
 	modelv1 "github.com/samzong/modelfs/api/v1"
 	"github.com/samzong/modelfs/pkg/ui/api"
 	"github.com/samzong/modelfs/pkg/ui/provider"
@@ -61,6 +62,14 @@ func (s *Store) ListModelSources(ctx context.Context, namespace string) ([]api.M
 	return items, nil
 }
 
+func (s *Store) GetModelSource(ctx context.Context, namespace, name string) (*modelv1.ModelSource, error) {
+	obj := &modelv1.ModelSource{}
+	if err := s.client.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, obj); err != nil {
+		return nil, err
+	}
+	return obj, nil
+}
+
 func (s *Store) ListNamespaces(ctx context.Context) ([]api.NamespaceInfo, error) {
 	list := &corev1.NamespaceList{}
 	if err := s.client.List(ctx, list); err != nil {
@@ -97,15 +106,26 @@ func (s *Store) Watch(ctx context.Context, namespace string) (<-chan api.SSEPayl
 		modelWatcher.Stop()
 		return nil, err
 	}
+	datasetWatcher, err := s.client.Watch(ctx, &datasetv1alpha1.DatasetList{}, client.InNamespace(namespace))
+	if err != nil {
+		// dataset watcher is optional; proceed without it
+	}
 	out := make(chan api.SSEPayload)
 	go func() {
 		defer close(out)
 		defer modelWatcher.Stop()
 		defer sourceWatcher.Stop()
+		if datasetWatcher != nil {
+			defer datasetWatcher.Stop()
+		}
 		var wg sync.WaitGroup
 		wg.Add(2)
 		go s.pipeWatch(ctx, &wg, "models", modelWatcher, out)
 		go s.pipeWatch(ctx, &wg, "modelsources", sourceWatcher, out)
+		if datasetWatcher != nil {
+			wg.Add(1)
+			go s.pipeWatch(ctx, &wg, "datasets", datasetWatcher, out)
+		}
 		wg.Wait()
 	}()
 	return out, nil
@@ -143,9 +163,38 @@ func (s *Store) payloadForEvent(resource string, evt watch.Event) (api.SSEPayloa
 	case *modelv1.ModelSource:
 		summary := summarizeModelSource(obj)
 		return api.SSEPayload{Resource: resource, Action: action, Payload: summary}, true
+	case *datasetv1alpha1.Dataset:
+		// emit minimal dataset summary payload
+		payload := map[string]interface{}{
+			"name":      obj.Name,
+			"namespace": obj.Namespace,
+			"phase":     strings.ToUpper(string(obj.Status.Phase)),
+			"pvcName":   obj.Status.PVCName,
+			"lastSync":  obj.Status.LastSyncTime.Time,
+		}
+		return api.SSEPayload{Resource: resource, Action: action, Payload: payload}, true
 	default:
 		return api.SSEPayload{}, false
 	}
+}
+
+func (s *Store) ListDatasets(ctx context.Context, namespace string) ([]map[string]interface{}, error) {
+	list := &datasetv1alpha1.DatasetList{}
+	if err := s.client.List(ctx, list, client.InNamespace(namespace)); err != nil {
+		return nil, err
+	}
+	items := make([]map[string]interface{}, 0, len(list.Items))
+	for i := range list.Items {
+		d := list.Items[i]
+		items = append(items, map[string]interface{}{
+			"name":      d.Name,
+			"namespace": d.Namespace,
+			"phase":     strings.ToUpper(string(d.Status.Phase)),
+			"pvcName":   d.Status.PVCName,
+			"lastSync":  d.Status.LastSyncTime.Time,
+		})
+	}
+	return items, nil
 }
 
 func summarizeModelSource(src *modelv1.ModelSource) api.ModelSourceSummary {
@@ -248,4 +297,40 @@ func (s *Store) TriggerResync(ctx context.Context, namespace, modelName string) 
 func (s *Store) CreateModelSource(ctx context.Context, namespace, name string, spec modelv1.ModelSourceSpec) error {
 	obj := &modelv1.ModelSource{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}, Spec: spec}
 	return s.client.Create(ctx, obj)
+}
+
+func (s *Store) UpdateModelSource(ctx context.Context, namespace, name string, spec modelv1.ModelSourceSpec) error {
+	obj := &modelv1.ModelSource{}
+	if err := s.client.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, obj); err != nil {
+		return err
+	}
+	obj.Spec = spec
+	return s.client.Update(ctx, obj)
+}
+
+func (s *Store) DeleteModelSource(ctx context.Context, namespace, name string) error {
+	obj := &modelv1.ModelSource{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
+	return s.client.Delete(ctx, obj)
+}
+
+func (s *Store) CreateModel(ctx context.Context, namespace, name string, spec modelv1.ModelSpec) error {
+	obj := &modelv1.Model{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}, Spec: spec}
+	return s.client.Create(ctx, obj)
+}
+
+func (s *Store) UpdateModel(ctx context.Context, namespace, name string, spec modelv1.ModelSpec) error {
+	obj := &modelv1.Model{}
+	if err := s.client.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, obj); err != nil {
+		return err
+	}
+	obj.Spec = spec
+	return s.client.Update(ctx, obj)
+}
+
+func (s *Store) ValidateSecret(ctx context.Context, namespace, name string) (bool, string, error) {
+	sec := &corev1.Secret{}
+	if err := s.client.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, sec); err != nil {
+		return false, err.Error(), nil
+	}
+	return true, "ok", nil
 }

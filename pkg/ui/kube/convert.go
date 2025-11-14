@@ -54,6 +54,9 @@ func modelDetail(m *modelv1.Model) api.ModelDetail {
 				vv.DatasetPhase = toPhase(sv.Phase)
 				vv.PVCName = sv.PVCName
 				vv.ObservedHash = sv.ObservedVersionHash
+				if sv.ObservedStorage != nil {
+					vv.ObservedStorage = sv.ObservedStorage.String()
+				}
 				break
 			}
 		}

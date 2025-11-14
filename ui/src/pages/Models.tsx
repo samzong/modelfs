@@ -69,7 +69,12 @@ export default function ModelsPage() {
                 </td>
               <td className="p-2">
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline">查看</Button>
+                    <Link to={`/models/${m.namespace}/${m.name}`}>
+                      <Button size="sm" variant="outline">查看</Button>
+                    </Link>
+                    <Link to={`/models/${m.namespace}/${m.name}/edit`}>
+                      <Button size="sm" variant="secondary">编辑</Button>
+                    </Link>
                     <Button size="sm" variant="danger" onClick={() => onDelete(m.name)}>删除</Button>
                   </div>
               </td>

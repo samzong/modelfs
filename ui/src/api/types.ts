@@ -23,6 +23,7 @@ export interface ModelVersionView {
   datasetPhase: Phase;
   pvcName?: string;
   observedHash?: string;
+  observedStorage?: string;
 }
 
 export interface ModelDetail {
@@ -53,4 +54,3 @@ export interface ErrorBanner {
   reason: string;
   retryAt: string;
 }
-

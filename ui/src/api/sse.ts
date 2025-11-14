@@ -9,6 +9,13 @@ export function attachSSE(ns: string, onEvent: SSEHandler) {
       onEvent(data.resource, data.action, data.payload);
     } catch {}
   };
+  ["added", "modified", "deleted"].forEach((evt) => {
+    es.addEventListener(evt, (e: any) => {
+      try {
+        const data = JSON.parse(e.data);
+        onEvent(data.resource, data.action, data.payload);
+      } catch {}
+    });
+  });
   return () => es.close();
 }
-
