@@ -38,11 +38,11 @@ export default function ModelSourceWizardPage() {
   }, [isEdit, editNs, editName]);
   useEffect(() => {
     if (!secretRef) { setSecretStatus(null); return; }
-    client.validateSecret(ns, secretRef).then(setSecretStatus).catch(() => setSecretStatus({ ready: false, message: "校验失败" }));
+    client.validateSecret(ns, secretRef).then(setSecretStatus).catch(() => setSecretStatus({ ready: false, message: "Validation Failed" }));
   }, [ns, secretRef]);
   const canSave = name.trim() !== "" && type.trim() !== "";
   async function save() {
-    if (!canSave) { setErr("请填写名称与类型"); return; }
+    if (!canSave) { setErr("Please enter name and type"); return; }
     try {
       if (isEdit) {
         await client.updateModelSource(ns, name, { type, secretRef, config });
@@ -56,17 +56,17 @@ export default function ModelSourceWizardPage() {
   }
   return (
     <div className="space-y-4">
-      <SectionHeader title={isEdit ? "编辑 ModelSource" : "创建 ModelSource"} />
+      <SectionHeader title={isEdit ? "Edit ModelSource" : "Create ModelSource"} />
       <div className="flex gap-4">
         <Card className="flex-1">
           <div className="space-y-3">
             <div className="flex gap-3">
               <div className="flex-1">
-                <label htmlFor="ms-name" className="block text-sm text-gray-600 mb-1">名称</label>
+                <label htmlFor="ms-name" className="block text-sm text-gray-600 mb-1">Name</label>
                 <input id="ms-name" className={`form-input w-full ${isEdit ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`} value={name} onChange={(e) => setName(e.target.value)} disabled={isEdit} />
               </div>
               <div className="flex-1">
-                <label htmlFor="ms-ns" className="block text-sm text-gray-600 mb-1">命名空间</label>
+                <label htmlFor="ms-ns" className="block text-sm text-gray-600 mb-1">Namespace</label>
                 <select id="ms-ns" className={`form-select w-full ${isEdit ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`} value={ns} onChange={(e) => setNs(e.target.value)} disabled={isEdit}>
                   {namespaces.map((n) => (<option key={n.name} value={n.name}>{n.name}</option>))}
                 </select>
@@ -74,7 +74,7 @@ export default function ModelSourceWizardPage() {
             </div>
             <div className="flex gap-3">
               <div className="flex-1">
-                <label htmlFor="ms-type" className="block text-sm text-gray-600 mb-1">类型</label>
+                <label htmlFor="ms-type" className="block text-sm text-gray-600 mb-1">Type</label>
                 <select id="ms-type" className={`form-select w-full ${isEdit ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`} value={type} onChange={(e) => setType(e.target.value)} disabled={isEdit}>
                   {types.map((t) => (<option key={t} value={t}>{t}</option>))}
                 </select>
@@ -83,12 +83,12 @@ export default function ModelSourceWizardPage() {
                 <label htmlFor="ms-secret" className="block text-sm text-gray-600 mb-1">SecretRef</label>
                 <input id="ms-secret" className="form-input w-full" value={secretRef} onChange={(e) => setSecretRef(e.target.value)} />
                 {secretStatus ? (
-                  <div className="text-xs mt-1">{secretStatus.ready ? <span className="text-green-700">就绪</span> : <span className="text-red-700">{secretStatus.message || "不可用"}</span>}</div>
+                  <div className="text-xs mt-1">{secretStatus.ready ? <span className="text-green-700">Ready</span> : <span className="text-red-700">{secretStatus.message || "Unavailable"}</span>}</div>
                 ) : null}
               </div>
             </div>
             <div>
-              <label htmlFor="ms-config" className="block text-sm text-gray-600 mb-1">配置（key=value，每行一项）</label>
+              <label htmlFor="ms-config" className="block text-sm text-gray-600 mb-1">Config (key=value, one per line)</label>
               <textarea id="ms-config" className="form-input w-full" rows={6} value={configText} onChange={(e) => setConfigText(e.target.value)} />
             </div>
             {err ? <div className="text-red-600 text-sm">{err}</div> : null}
@@ -96,7 +96,7 @@ export default function ModelSourceWizardPage() {
         </Card>
         <Card className="w-64 h-fit">
           <div className="space-y-2">
-            <Button onClick={save} disabled={!canSave}>保存</Button>
+            <Button onClick={save} disabled={!canSave}>Save</Button>
           </div>
         </Card>
       </div>

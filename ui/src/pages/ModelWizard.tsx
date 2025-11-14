@@ -75,8 +75,8 @@ export default function ModelWizardPage() {
   }
 
   function next() {
-    if (step === 1 && !canNext1) { setErrors({ basic: "请填写名称与来源" }); return; }
-    if (step === 2 && !canNext2) { setErrors({ versions: "每个版本需填写名称与仓库" }); return; }
+    if (step === 1 && !canNext1) { setErrors({ basic: "Please enter name and source" }); return; }
+    if (step === 2 && !canNext2) { setErrors({ versions: "Each version requires name and repository" }); return; }
     setErrors({});
     setStep(step + 1);
   }
@@ -105,18 +105,18 @@ export default function ModelWizardPage() {
   const sourcesFiltered = useMemo(() => sources.filter((s) => s.namespace === ns), [sources, ns]);
   return (
     <div className="space-y-4">
-      <SectionHeader title={isEdit ? "编辑模型" : "创建模型"} description="三步完成模型创建或编辑" />
+      <SectionHeader title={isEdit ? "Edit Model" : "Create Model"} description="Create or edit a model in three steps" />
       <div className="flex gap-4">
         <Card className="flex-1">
           {step === 1 && (
             <div className="space-y-3">
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label htmlFor="model-name" className="block text-sm text-gray-600 mb-1">名称</label>
+                  <label htmlFor="model-name" className="block text-sm text-gray-600 mb-1">Name</label>
                   <input id="model-name" className={`form-input w-full ${isEdit ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`} value={name} onChange={(e) => setName(e.target.value)} disabled={isEdit} />
                 </div>
                 <div className="flex-1">
-                  <label htmlFor="model-ns" className="block text-sm text-gray-600 mb-1">命名空间</label>
+                  <label htmlFor="model-ns" className="block text-sm text-gray-600 mb-1">Namespace</label>
                   <Select.Root value={ns} onValueChange={setNs}>
                     <Select.Trigger id="model-ns" className={`border px-3 h-10 rounded-lg w-full text-left ${isEdit ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`} disabled={isEdit}>
                       <Select.Value placeholder={ns} />
@@ -134,10 +134,10 @@ export default function ModelWizardPage() {
                 </div>
               </div>
               <div>
-                <label htmlFor="model-src" className="block text-sm text-gray-600 mb-1">来源（SourceRef）</label>
+                <label htmlFor="model-src" className="block text-sm text-gray-600 mb-1">Source (SourceRef)</label>
                 <Select.Root value={sourceRef} onValueChange={setSourceRef}>
                   <Select.Trigger id="model-src" className="border px-3 h-10 rounded-lg w-full text-left">
-                    <Select.Value placeholder={sourceRef || "请选择来源"} />
+                    <Select.Value placeholder={sourceRef || "Please select a source"} />
                   </Select.Trigger>
                   <Select.Content className="bg-white border rounded-lg shadow z-50">
                     <Select.Viewport>
@@ -151,11 +151,11 @@ export default function ModelWizardPage() {
                 </Select.Root>
               </div>
               <div>
-                <label htmlFor="model-desc" className="block text-sm text-gray-600 mb-1">描述</label>
+                <label htmlFor="model-desc" className="block text-sm text-gray-600 mb-1">Description</label>
                 <textarea id="model-desc" className="form-input w-full" value={description} onChange={(e) => setDescription(e.target.value)} />
               </div>
               <div>
-                <label htmlFor="model-tags" className="block text-sm text-gray-600 mb-1">标签（逗号分隔）</label>
+                <label htmlFor="model-tags" className="block text-sm text-gray-600 mb-1">Tags (comma-separated)</label>
                 <input id="model-tags" className="form-input w-full" value={tags.join(',')} onChange={(e) => setTags(e.target.value.split(',').map(s => s.trim()).filter(Boolean))} />
               </div>
               {errors.basic ? <div className="text-red-600 text-sm">{errors.basic}</div> : null}
@@ -166,8 +166,8 @@ export default function ModelWizardPage() {
               {versions.map((v, i) => (
                 <div key={i} className="border rounded-lg p-3">
                   <div className="flex gap-3">
-                    <input className="form-input flex-1" placeholder="版本名" value={v.name} onChange={(e) => updateVersion(i, { name: e.target.value })} />
-                    <input className="form-input flex-1" placeholder="仓库" value={v.repo} onChange={(e) => updateVersion(i, { repo: e.target.value })} />
+                    <input className="form-input flex-1" placeholder="Version Name" value={v.name} onChange={(e) => updateVersion(i, { name: e.target.value })} />
+                    <input className="form-input flex-1" placeholder="Repository" value={v.repo} onChange={(e) => updateVersion(i, { repo: e.target.value })} />
                   </div>
                   <div className="flex gap-3 mt-2">
                     <select className="form-select" value={v.precision || ""} onChange={(e) => updateVersion(i, { precision: (e.target.value || undefined) as any })}>
@@ -181,26 +181,26 @@ export default function ModelWizardPage() {
                       <option value="ABSENT">ABSENT</option>
                     </select>
                     <label className="inline-flex items-center gap-2">
-                      <input type="checkbox" checked={v.shareEnabled} onChange={(e) => updateVersion(i, { shareEnabled: e.target.checked })} /> 分享
+                      <input type="checkbox" checked={v.shareEnabled} onChange={(e) => updateVersion(i, { shareEnabled: e.target.checked })} /> Share
                     </label>
-                    <Button variant="outline" size="sm" onClick={() => removeVersion(i)}>移除</Button>
+                    <Button variant="outline" size="sm" onClick={() => removeVersion(i)}>Remove</Button>
                   </div>
                 </div>
               ))}
-              <Button variant="secondary" onClick={addVersion}>添加版本</Button>
+              <Button variant="secondary" onClick={addVersion}>Add Version</Button>
               {errors.versions ? <div className="text-red-600 text-sm">{errors.versions}</div> : null}
             </div>
           )}
           {step === 3 && (
               <div className="space-y-3">
-                <div className="text-sm text-gray-600">预览</div>
+                <div className="text-sm text-gray-600">Preview</div>
                 <pre className="bg-muted p-3 rounded-lg text-sm overflow-auto">{JSON.stringify({
                   apiVersion: "model.samzong.dev/v1",
                   kind: "Model",
                   metadata: { name, namespace: ns, labels: tags.reduce((acc, t) => ({ ...acc, [t]: "true" }), {}) },
                   spec: { sourceRef, versions },
                 }, null, 2)}</pre>
-                <div className="text-sm text-gray-600">CLI 等效</div>
+                <div className="text-sm text-gray-600">CLI Equivalent</div>
                 <pre className="bg-muted p-3 rounded-lg text-sm overflow-auto">{`kubectl -n ${ns} apply -f - <<'EOF'
 apiVersion: model.samzong.dev/v1
 kind: Model
@@ -223,15 +223,15 @@ EOF`}</pre>
         </Card>
         <Card className="w-64 h-fit">
           <div className="space-y-2">
-            <div>步骤</div>
+            <div>Steps</div>
             <div className="flex flex-col gap-2">
-              <Button variant={step === 1 ? "primary" : "outline"} onClick={() => setStep(1)}>1 基础</Button>
-              <Button variant={step === 2 ? "primary" : "outline"} onClick={() => setStep(2)}>2 版本</Button>
-              <Button variant={step === 3 ? "primary" : "outline"} onClick={() => setStep(3)}>3 预览</Button>
+              <Button variant={step === 1 ? "primary" : "outline"} onClick={() => setStep(1)}>1 Basics</Button>
+              <Button variant={step === 2 ? "primary" : "outline"} onClick={() => setStep(2)}>2 Versions</Button>
+              <Button variant={step === 3 ? "primary" : "outline"} onClick={() => setStep(3)}>3 Preview</Button>
             </div>
             <div className="flex gap-2 pt-2">
-              {step > 1 ? <Button variant="outline" onClick={prev}>上一步</Button> : null}
-              {step < 3 ? <Button onClick={next} disabled={(step === 1 && !canNext1) || (step === 2 && !canNext2)}>下一步</Button> : <Button onClick={save} disabled={!canNext1 || !canNext2}>保存</Button>}
+              {step > 1 ? <Button variant="outline" onClick={prev}>Back</Button> : null}
+              {step < 3 ? <Button onClick={next} disabled={(step === 1 && !canNext1) || (step === 2 && !canNext2)}>Next</Button> : <Button onClick={save} disabled={!canNext1 || !canNext2}>Save</Button>}
             </div>
           </div>
         </Card>

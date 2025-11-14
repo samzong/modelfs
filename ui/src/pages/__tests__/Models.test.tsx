@@ -6,9 +6,9 @@ vi.mock("@tanstack/react-router", () => ({
   Link: (props: any) => (<a {...props} />),
 }));
 
-test("列表筛选按名称或标签", async () => {
+test("List filter by name or tag", async () => {
   render(<ModelsPage />);
-  const input = screen.getByPlaceholderText("筛选名称或标签");
+  const input = screen.getByPlaceholderText("Filter by name or tag");
   fireEvent.change(input, { target: { value: "qwen" } });
   expect(useUiState.getState().filterText).toBe("qwen");
 });

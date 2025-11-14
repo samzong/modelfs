@@ -29,25 +29,25 @@ export default function ModelSourcesPage() {
   function cancelDelete() { setPendingDelete(null); }
   return (
     <div className="space-y-4">
-      <SectionHeader title="ModelSources" description="模型来源配置与凭据状态" right={<a href="/modelsources/new"><Button variant="primary">创建</Button></a>} />
+      <SectionHeader title="ModelSources" description="Model Source Configuration and Credential Status" right={<a href="/modelsources/new"><Button variant="primary">Create</Button></a>} />
       <div className="toolbar">
-        <input className="form-input w-72" placeholder="搜索名称/类型/Secret" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="form-input w-72" placeholder="Search name/type/Secret" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       <Card>
         <table className="min-w-full">
           <thead>
             <tr className="text-left text-sm text-gray-500">
-              <th className="p-2">名称</th>
-              <th className="p-2">类型</th>
+              <th className="p-2">Name</th>
+              <th className="p-2">Type</th>
               <th className="p-2">Secret</th>
-              <th className="p-2">凭据</th>
-              <th className="p-2">引用模型</th>
-              <th className="p-2">操作</th>
+              <th className="p-2">Credentials</th>
+              <th className="p-2">Referenced Models</th>
+              <th className="p-2">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td className="p-6 text-gray-500" colSpan={5}>暂无来源</td></tr>
+              <tr><td className="p-6 text-gray-500" colSpan={5}>No Sources</td></tr>
             ) : filtered.map((s, idx) => (
               <tr key={`${s.namespace}/${s.name}`} className={idx % 2 === 0 ? "bg-white" : "bg-muted"}>
                 <td className="p-2">
@@ -55,17 +55,17 @@ export default function ModelSourcesPage() {
                 </td>
                 <td className="p-2">{s.type}</td>
                 <td className="p-2">{s.secretRef || "-"}</td>
-                <td className="p-2">{s.credentialsReady ? <span className="px-2 py-1 rounded-lg bg-green-100 text-green-800 text-sm">就绪</span> : s.credentialsStatus || "未知"}</td>
+                <td className="p-2">{s.credentialsReady ? <span className="px-2 py-1 rounded-lg bg-green-100 text-green-800 text-sm">Ready</span> : s.credentialsStatus || "Unknown"}</td>
                 <td className="p-2">{s.referencedModels?.length ? s.referencedModels?.join(", ") : "-"}</td>
                 <td className="p-2">
                   <div className="flex gap-2">
                     <Link to={`/modelsources/${s.namespace}/${s.name}`}>
-                      <Button size="sm" variant="outline">查看</Button>
+                      <Button size="sm" variant="outline">View</Button>
                     </Link>
                     <Link to={`/modelsources/${s.namespace}/${s.name}/edit`}>
-                      <Button size="sm" variant="secondary">编辑</Button>
+                      <Button size="sm" variant="secondary">Edit</Button>
                     </Link>
-                    <Button size="sm" variant="danger" onClick={() => onDelete(s.name)} disabled={!!(s.referencedModels && s.referencedModels.length > 0)}>删除</Button>
+                    <Button size="sm" variant="danger" onClick={() => onDelete(s.name)} disabled={!!(s.referencedModels && s.referencedModels.length > 0)}>Delete</Button>
                   </div>
                 </td>
               </tr>
@@ -73,7 +73,7 @@ export default function ModelSourcesPage() {
           </tbody>
         </table>
       </Card>
-      <ConfirmDialog open={!!pendingDelete} title={`删除 ModelSource ${pendingDelete || ""}`} description="当存在引用模型时不可删除（Mock）。" onConfirm={confirmDelete} onCancel={cancelDelete} />
+      <ConfirmDialog open={!!pendingDelete} title={`Delete ModelSource ${pendingDelete || ""}`} description="Cannot delete when referenced (Mock)." onConfirm={confirmDelete} onCancel={cancelDelete} />
     </div>
   );
 }
