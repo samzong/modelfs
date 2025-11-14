@@ -1,0 +1,28 @@
+{{- if and .Values.ui.enabled .Values.ui.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "modelfs.fullname" . }}-ui
+  namespace: {{ .Values.namespace.name }}
+  {{- with .Values.ui.ingress.className }}
+  annotations:
+    kubernetes.io/ingress.class: {{ . }}
+  {{- end }}
+spec:
+  rules:
+  {{- range .Values.ui.ingress.hosts }}
+    - host: {{ .host }}
+      http:
+        paths:
+        {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "modelfs.fullname" $ }}-ui
+                port:
+                  number: {{ $.Values.ui.service.port }}
+        {{- end }}
+  {{- end }}
+{{- end -}}
+

@@ -4,6 +4,7 @@ go 1.25.1
 
 require (
 	github.com/BaizeAI/dataset v0.1.6
+	github.com/go-chi/chi/v5 v5.0.11
 	k8s.io/api v0.34.1
 	k8s.io/apimachinery v0.34.1
 	k8s.io/client-go v0.34.1

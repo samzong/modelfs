@@ -82,3 +82,7 @@ build/
 *.temp
 tmp/
 temp/
+
+ui/node_modules/
+.cache/
+.trae/
