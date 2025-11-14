@@ -85,3 +85,29 @@ tolerations: []
 # Affinity
 affinity: {}
 
+ui:
+  enabled: false
+  replicaCount: 1
+  image:
+    registry: ""
+    repository: ui-server
+    tag: latest
+    pullPolicy: IfNotPresent
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+  rbac:
+    create: true
+  service:
+    type: ClusterIP
+    port: 8080
+  ingress:
+    enabled: false
+    className: ""
+    hosts:
+      - host: ui.local
+        paths:
+          - path: /
+            pathType: Prefix
+  extraEnv: []

@@ -1,0 +1,17 @@
+{{- if and .Values.ui.enabled .Values.ui.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "modelfs.fullname" . }}-ui
+rules:
+  - apiGroups: ["model.samzong.dev"]
+    resources: ["models", "modelsources"]
+    verbs: ["get", "list", "watch", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["secrets", "namespaces", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["dataset.baizeai.io"]
+    resources: ["datasets"]
+    verbs: ["get", "list", "watch"]
+{{- end -}}
+

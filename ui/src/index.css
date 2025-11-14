@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.card {
+  @apply bg-white border rounded-lg shadow-sm;
+}
+
+.toolbar {
+  @apply flex items-center gap-2 justify-between mb-3;
+}
