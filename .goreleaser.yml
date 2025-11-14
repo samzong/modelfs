@@ -22,6 +22,7 @@ builds:
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
 
+
 # Archive configuration
 archives:
   - id: default
@@ -30,17 +31,8 @@ archives:
       - LICENSE
       - README.md
 
-# Docker images configuration
-dockers_v2:
-  - images:
-      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/modelfs"
-    tags:
-      - "{{ .Tag }}"
-      - latest
-    platforms:
-      - linux/amd64
-      - linux/arm64
-    dockerfile: Dockerfile
+# Docker images configuration (disabled; handled by GitHub Actions)
+dockers_v2: []
 
 # GitHub release configuration
 release:
@@ -78,4 +70,3 @@ snapshot: {}
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
   algorithm: sha256
-

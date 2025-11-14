@@ -4,11 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+	"io/fs"
+	"path"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	modelv1 "github.com/samzong/modelfs/api/v1"
 	"github.com/samzong/modelfs/pkg/ui/api"
+	"github.com/samzong/modelfs/pkg/ui/static"
 	"github.com/samzong/modelfs/pkg/ui/provider"
 )
 
@@ -87,6 +91,42 @@ func (s *Server) Routes() http.Handler {
 		apiRouter.Get("/errors", s.handleErrors)
 		apiRouter.Get("/sse", s.handleSSE)
 	})
+
+    fsys := static.Files
+    dist, _ := fs.Sub(fsys, "dist")
+	r.Handle("/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Path
+		if p == "/" {
+			b, err := fs.ReadFile(dist, "index.html")
+			if err == nil {
+				w.Header().Set("Content-Type", "text/html")
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write(b)
+				return
+			}
+		}
+		name := strings.TrimPrefix(p, "/")
+		if exists(dist, name) {
+			// serve file bytes with simple content-type
+			b, err := fs.ReadFile(dist, name)
+			if err == nil {
+				ct := contentTypeByExt(path.Ext(name))
+				if ct != "" { w.Header().Set("Content-Type", ct) }
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write(b)
+				return
+			}
+		}
+		// fallback to index.html for SPA
+		b, err := fs.ReadFile(dist, "index.html")
+		if err == nil {
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(b)
+			return
+		}
+		http.NotFound(w, r)
+	}))
 	return r
 }
 
@@ -440,4 +480,36 @@ func writeJSON(w http.ResponseWriter, code int, payload interface{}) {
 
 func writeError(w http.ResponseWriter, code int, message string) {
 	writeJSON(w, code, map[string]string{"error": message})
+}
+
+func exists(fsys fs.FS, name string) bool {
+	f, err := fsys.Open(name)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
+}
+
+func contentTypeByExt(ext string) string {
+	switch strings.ToLower(ext) {
+	case ".html":
+		return "text/html"
+	case ".js":
+		return "text/javascript"
+	case ".css":
+		return "text/css"
+	case ".svg":
+		return "image/svg+xml"
+	case ".png":
+		return "image/png"
+	case ".ico":
+		return "image/x-icon"
+	default:
+		return "application/octet-stream"
+	}
 }
