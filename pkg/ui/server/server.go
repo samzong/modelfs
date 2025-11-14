@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	modelv1 "github.com/samzong/modelfs/api/v1"
 	"github.com/samzong/modelfs/pkg/ui/api"
 	"github.com/samzong/modelfs/pkg/ui/provider"
 )
@@ -74,6 +75,7 @@ func (s *Server) Routes() http.Handler {
 		apiRouter.Post("/models/{namespace}/{name}/versions/{version}/share", s.handleShareToggle)
 		apiRouter.Post("/models/{namespace}/{name}/actions/resync", s.handleResync)
 		apiRouter.Get("/modelsources", s.handleModelSources)
+		apiRouter.Post("/modelsources", s.handleModelSourceCreate)
 		apiRouter.Get("/namespaces", s.handleNamespaces)
 		apiRouter.Get("/errors", s.handleErrors)
 		apiRouter.Get("/sse", s.handleSSE)
@@ -233,6 +235,32 @@ func (s *Server) handleResync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type modelSourceCreateRequest struct {
+	Name      string            `json:"name"`
+	Namespace string            `json:"namespace"`
+	Type      string            `json:"type"`
+	SecretRef string            `json:"secretRef"`
+	Config    map[string]string `json:"config"`
+}
+
+func (s *Server) handleModelSourceCreate(w http.ResponseWriter, r *http.Request) {
+	var req modelSourceCreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	ns := req.Namespace
+	if ns == "" {
+		ns = s.namespaceFromRequest(r)
+	}
+	spec := modelv1.ModelSourceSpec{Type: req.Type, SecretRef: req.SecretRef, Config: req.Config}
+	if err := s.store.CreateModelSource(r.Context(), ns, req.Name, spec); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
 }
 
 func (s *Server) namespaceFromRequest(r *http.Request) string {

@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	modelv1 "github.com/samzong/modelfs/api/v1"
 	"github.com/samzong/modelfs/pkg/ui/api"
 	"time"
 )
@@ -44,5 +45,8 @@ func (m *mockStore) ToggleVersionShare(ctx context.Context, namespace, modelName
 	return nil
 }
 func (m *mockStore) TriggerResync(ctx context.Context, namespace, modelName string) error { return nil }
+func (m *mockStore) CreateModelSource(ctx context.Context, namespace, name string, spec modelv1.ModelSourceSpec) error {
+	return nil
+}
 
 func namespaceFallback(ctx context.Context) string { return "model-system" }

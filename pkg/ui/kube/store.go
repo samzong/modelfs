@@ -244,3 +244,8 @@ func (s *Store) TriggerResync(ctx context.Context, namespace, modelName string) 
 	model.Annotations["modelfs.samzong.dev/resyncAt"] = time.Now().UTC().Format(time.RFC3339Nano)
 	return s.client.Update(ctx, model)
 }
+
+func (s *Store) CreateModelSource(ctx context.Context, namespace, name string, spec modelv1.ModelSourceSpec) error {
+	obj := &modelv1.ModelSource{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}, Spec: spec}
+	return s.client.Create(ctx, obj)
+}

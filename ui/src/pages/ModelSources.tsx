@@ -29,7 +29,7 @@ export default function ModelSourcesPage() {
   function cancelDelete() { setPendingDelete(null); }
   return (
     <div className="space-y-4">
-      <SectionHeader title="ModelSources" description="模型来源配置与凭据状态" right={<Button variant="primary" disabled>创建</Button>} />
+      <SectionHeader title="ModelSources" description="模型来源配置与凭据状态" right={<a href="/modelsources/new"><Button variant="primary">创建</Button></a>} />
       <div className="toolbar">
         <input className="form-input w-72" placeholder="搜索名称/类型/Secret" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>

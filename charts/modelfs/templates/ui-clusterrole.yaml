@@ -6,7 +6,7 @@ metadata:
 rules:
   - apiGroups: ["model.samzong.dev"]
     resources: ["models", "modelsources"]
-    verbs: ["get", "list", "watch", "update", "patch", "delete"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: [""]
     resources: ["secrets", "namespaces", "persistentvolumeclaims"]
     verbs: ["get", "list", "watch"]
@@ -14,4 +14,3 @@ rules:
     resources: ["datasets"]
     verbs: ["get", "list", "watch"]
 {{- end -}}
-

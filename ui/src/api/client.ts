@@ -17,6 +17,9 @@ export const client = {
   async listErrors(ns: string): Promise<{ items: ErrorBanner[] }> {
     return apiFetch(`/api/errors?namespace=${encodeURIComponent(ns)}`);
   },
+  async createModelSource(ns: string, req: { name: string; type: string; secretRef?: string; config?: Record<string, string> }): Promise<void> {
+    await apiFetch(`/api/modelsources`, { method: "POST", body: JSON.stringify({ ...req, namespace: ns }) });
+  },
   async deleteModel(ns: string, name: string): Promise<void> {
     await apiFetch(`/api/models/${encodeURIComponent(ns)}/${encodeURIComponent(name)}`, { method: "DELETE" });
   },
@@ -30,4 +33,3 @@ export const client = {
     await apiFetch(`/api/models/${encodeURIComponent(ns)}/${encodeURIComponent(name)}/actions/resync`, { method: "POST" });
   },
 };
-

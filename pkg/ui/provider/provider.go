@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	modelv1 "github.com/samzong/modelfs/api/v1"
 	"github.com/samzong/modelfs/pkg/ui/api"
 )
 
@@ -16,4 +17,5 @@ type Store interface {
 	DeleteModelVersion(ctx context.Context, namespace, modelName, versionName string) error
 	ToggleVersionShare(ctx context.Context, namespace, modelName, versionName string, enabled bool) error
 	TriggerResync(ctx context.Context, namespace, modelName string) error
+	CreateModelSource(ctx context.Context, namespace, name string, spec modelv1.ModelSourceSpec) error
 }
