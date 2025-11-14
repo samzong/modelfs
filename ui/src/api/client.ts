@@ -8,8 +8,23 @@ export const client = {
   async getModel(ns: string, name: string): Promise<ModelDetail> {
     return apiFetch(`/api/models/${encodeURIComponent(ns)}/${encodeURIComponent(name)}`);
   },
+  async createModel(ns: string, req: { name: string; sourceRef: string; description?: string; tags?: string[]; versions: Array<{ name: string; repo: string; revision?: string; precision?: string; desiredState?: string; shareEnabled?: boolean; }> }): Promise<ModelDetail> {
+    return apiFetch(`/api/models`, { method: "POST", body: JSON.stringify({ ...req, namespace: ns }) });
+  },
+  async updateModel(ns: string, name: string, req: { sourceRef: string; description?: string; tags?: string[]; versions: Array<{ name: string; repo: string; revision?: string; precision?: string; desiredState?: string; shareEnabled?: boolean; }> }): Promise<ModelDetail> {
+    return apiFetch(`/api/models/${encodeURIComponent(ns)}/${encodeURIComponent(name)}`, { method: "PUT", body: JSON.stringify({ name, namespace: ns, ...req }) });
+  },
   async listModelSources(ns: string): Promise<{ items: ModelSourceSummary[] }> {
     return apiFetch(`/api/modelsources?namespace=${encodeURIComponent(ns)}`);
+  },
+  async getModelSource(ns: string, name: string): Promise<{ name: string; namespace: string; spec: any }> {
+    return apiFetch(`/api/modelsources/${encodeURIComponent(ns)}/${encodeURIComponent(name)}`);
+  },
+  async updateModelSource(ns: string, name: string, req: { type: string; secretRef?: string; config?: Record<string, string> }): Promise<void> {
+    await apiFetch(`/api/modelsources/${encodeURIComponent(ns)}/${encodeURIComponent(name)}`, { method: "PUT", body: JSON.stringify({ name, namespace: ns, ...req }) });
+  },
+  async deleteModelSource(ns: string, name: string): Promise<void> {
+    await apiFetch(`/api/modelsources/${encodeURIComponent(ns)}/${encodeURIComponent(name)}`, { method: "DELETE" });
   },
   async listNamespaces(): Promise<{ items: NamespaceInfo[] }> {
     return apiFetch(`/api/namespaces`);
@@ -19,6 +34,12 @@ export const client = {
   },
   async createModelSource(ns: string, req: { name: string; type: string; secretRef?: string; config?: Record<string, string> }): Promise<void> {
     await apiFetch(`/api/modelsources`, { method: "POST", body: JSON.stringify({ ...req, namespace: ns }) });
+  },
+  async validateSecret(ns: string, name: string): Promise<{ ready: boolean; message: string }> {
+    return apiFetch(`/api/secrets/validate?namespace=${encodeURIComponent(ns)}&name=${encodeURIComponent(name)}`);
+  },
+  async listDatasets(ns: string): Promise<{ items: Array<{ name: string; namespace: string; phase: string; pvcName?: string; lastSync: string }> }> {
+    return apiFetch(`/api/datasets?namespace=${encodeURIComponent(ns)}`);
   },
   async deleteModel(ns: string, name: string): Promise<void> {
     await apiFetch(`/api/models/${encodeURIComponent(ns)}/${encodeURIComponent(name)}`, { method: "DELETE" });

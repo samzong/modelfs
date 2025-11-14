@@ -70,12 +70,19 @@ func (s *Server) Routes() http.Handler {
 	r.Route("/api", func(apiRouter chi.Router) {
 		apiRouter.Get("/models", s.handleModelsList)
 		apiRouter.Get("/models/{namespace}/{name}", s.handleModelDetail)
+		apiRouter.Post("/models", s.handleModelCreate)
+		apiRouter.Put("/models/{namespace}/{name}", s.handleModelUpdate)
 		apiRouter.Delete("/models/{namespace}/{name}", s.handleModelDelete)
 		apiRouter.Delete("/models/{namespace}/{name}/versions/{version}", s.handleModelVersionDelete)
 		apiRouter.Post("/models/{namespace}/{name}/versions/{version}/share", s.handleShareToggle)
 		apiRouter.Post("/models/{namespace}/{name}/actions/resync", s.handleResync)
 		apiRouter.Get("/modelsources", s.handleModelSources)
+		apiRouter.Get("/modelsources/{namespace}/{name}", s.handleModelSourceDetail)
 		apiRouter.Post("/modelsources", s.handleModelSourceCreate)
+		apiRouter.Put("/modelsources/{namespace}/{name}", s.handleModelSourceUpdate)
+		apiRouter.Delete("/modelsources/{namespace}/{name}", s.handleModelSourceDelete)
+		apiRouter.Get("/secrets/validate", s.handleSecretValidate)
+		apiRouter.Get("/datasets", s.handleDatasets)
 		apiRouter.Get("/namespaces", s.handleNamespaces)
 		apiRouter.Get("/errors", s.handleErrors)
 		apiRouter.Get("/sse", s.handleSSE)
@@ -123,6 +130,17 @@ func (s *Server) handleModelSources(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, struct {
 		Items []api.ModelSourceSummary `json:"items"`
 	}{Items: items})
+}
+
+func (s *Server) handleModelSourceDetail(w http.ResponseWriter, r *http.Request) {
+	namespace := chi.URLParam(r, "namespace")
+	name := chi.URLParam(r, "name")
+	obj, err := s.store.GetModelSource(r.Context(), namespace, name)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"name": obj.Name, "namespace": obj.Namespace, "spec": obj.Spec})
 }
 
 func (s *Server) handleNamespaces(w http.ResponseWriter, r *http.Request) {
@@ -261,6 +279,149 @@ func (s *Server) handleModelSourceCreate(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
+}
+
+func (s *Server) handleModelSourceUpdate(w http.ResponseWriter, r *http.Request) {
+	var req modelSourceCreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	ns := chi.URLParam(r, "namespace")
+	name := chi.URLParam(r, "name")
+	spec := modelv1.ModelSourceSpec{Type: req.Type, SecretRef: req.SecretRef, Config: req.Config}
+	if err := s.store.UpdateModelSource(r.Context(), ns, name, spec); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleModelSourceDelete(w http.ResponseWriter, r *http.Request) {
+	ns := chi.URLParam(r, "namespace")
+	name := chi.URLParam(r, "name")
+	if err := s.store.DeleteModelSource(r.Context(), ns, name); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+type modelCreateUpdateRequest struct {
+	Name        string              `json:"name"`
+	Namespace   string              `json:"namespace"`
+	SourceRef   string              `json:"sourceRef"`
+	Description string              `json:"description"`
+	Tags        []string            `json:"tags"`
+	Versions    []modelVersionInput `json:"versions"`
+}
+
+type modelVersionInput struct {
+	Name         string `json:"name"`
+	Repo         string `json:"repo"`
+	Revision     string `json:"revision"`
+	Precision    string `json:"precision"`
+	DesiredState string `json:"desiredState"`
+	ShareEnabled bool   `json:"shareEnabled"`
+}
+
+func (s *Server) handleModelCreate(w http.ResponseWriter, r *http.Request) {
+	var req modelCreateUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	ns := req.Namespace
+	if ns == "" {
+		ns = s.namespaceFromRequest(r)
+	}
+	spec := toModelSpec(req)
+	if err := s.store.CreateModel(r.Context(), ns, req.Name, spec); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	payload, err := s.store.GetModel(r.Context(), ns, req.Name)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, payload)
+}
+
+func (s *Server) handleModelUpdate(w http.ResponseWriter, r *http.Request) {
+	var req modelCreateUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	ns := chi.URLParam(r, "namespace")
+	if ns == "" {
+		ns = s.namespaceFromRequest(r)
+	}
+	name := chi.URLParam(r, "name")
+	spec := toModelSpec(req)
+	if err := s.store.UpdateModel(r.Context(), ns, name, spec); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	payload, err := s.store.GetModel(r.Context(), ns, name)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, payload)
+}
+
+func toModelSpec(req modelCreateUpdateRequest) modelv1.ModelSpec {
+	versions := make([]modelv1.ModelVersion, 0, len(req.Versions))
+	for _, v := range req.Versions {
+		mv := modelv1.ModelVersion{
+			Name:      v.Name,
+			Repo:      v.Repo,
+			Revision:  v.Revision,
+			Precision: v.Precision,
+		}
+		if v.DesiredState != "" {
+			mv.State = modelv1.ModelVersionState(v.DesiredState)
+		}
+		if v.ShareEnabled {
+			mv.Share = &modelv1.ShareSpec{Enabled: true}
+		}
+		versions = append(versions, mv)
+	}
+	disp := &modelv1.DisplaySpec{Description: req.Description, Tags: req.Tags}
+	return modelv1.ModelSpec{SourceRef: req.SourceRef, Display: disp, Versions: versions}
+}
+
+func (s *Server) handleSecretValidate(w http.ResponseWriter, r *http.Request) {
+	ns := r.URL.Query().Get("namespace")
+	if ns == "" {
+		ns = s.namespaceFromRequest(r)
+	}
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		writeError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	ready, msg, err := s.store.ValidateSecret(r.Context(), ns, name)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"ready": ready, "message": msg})
+}
+
+func (s *Server) handleDatasets(w http.ResponseWriter, r *http.Request) {
+	ns := r.URL.Query().Get("namespace")
+	if ns == "" {
+		ns = s.namespaceFromRequest(r)
+	}
+	items, err := s.store.ListDatasets(r.Context(), ns)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"items": items})
 }
 
 func (s *Server) namespaceFromRequest(r *http.Request) string {

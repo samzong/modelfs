@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { client } from "@api/client";
 import { useUiState } from "@app/state";
 import Card from "@components/Card";
@@ -10,6 +10,8 @@ export default function ModelDetailPage() {
   const [detail, setDetail] = useState<any>(null);
   useEffect(() => { client.getModel(ns, name).then(setDetail).catch(() => setDetail(null)); }, [ns, name]);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [tab, setTab] = useState<"info"|"yaml">("info");
+  const yaml = useMemo(() => (detail ? toYAML(detail) : ""), [detail]);
   if (!detail) return <div className="card p-4">加载中...</div>;
   return (
     <div className="space-y-4">
@@ -19,7 +21,10 @@ export default function ModelDetailPage() {
             <h2 className="text-2xl font-semibold">{detail.summary.name}</h2>
             {detail.description ? <p className="text-gray-600">{detail.description}</p> : null}
           </div>
-          <Badge phase={detail.summary.status} />
+          <div className="flex items-center gap-2">
+            <Badge phase={detail.summary.status} />
+            <a href={`/models/${detail.summary.namespace}/${detail.summary.name}/edit`} className="px-3 py-1 rounded-lg border">编辑</a>
+          </div>
         </div>
         {detail.summary.tags?.length ? (
           <div className="mt-2">
@@ -30,7 +35,17 @@ export default function ModelDetailPage() {
         ) : null}
       </Card>
       <Card>
-        <h3 className="text-lg font-semibold mb-2">版本</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold">版本</h3>
+          <div className="flex gap-2">
+            <button className={`px-3 py-1 rounded ${tab === "info" ? "bg-primary-600 text-white" : "bg-muted"}`} onClick={() => setTab("info")}>信息</button>
+            <button className={`px-3 py-1 rounded ${tab === "yaml" ? "bg-primary-600 text-white" : "bg-muted"}`} onClick={() => setTab("yaml")}>YAML</button>
+          </div>
+        </div>
+        {tab === "yaml" ? (
+          <pre className="bg-muted p-3 rounded-lg text-sm overflow-auto">{yaml}</pre>
+        ) : (
+        <div>
         <table className="min-w-full">
           <thead>
             <tr className="text-left text-sm text-gray-500">
@@ -40,6 +55,7 @@ export default function ModelDetailPage() {
               <th className="p-2">分享</th>
               <th className="p-2">Dataset</th>
               <th className="p-2">PVC</th>
+              <th className="p-2">存储(观测)</th>
             </tr>
           </thead>
           <tbody>
@@ -51,6 +67,7 @@ export default function ModelDetailPage() {
                 <td className="p-2">{v.shareEnabled ? "启用" : "关闭"}</td>
                 <td className="p-2">{v.datasetPhase}</td>
                 <td className="p-2">{v.pvcName || "-"}</td>
+                <td className="p-2">{v.observedStorage || "-"}</td>
               </tr>
             ))}
           </tbody>
@@ -62,7 +79,39 @@ export default function ModelDetailPage() {
             <div className="text-xs text-gray-600 mt-2">kubectl -n {detail.summary.namespace} get pvc {detail.versions.find(v => v.name === expanded)?.pvcName || "-"}</div>
           </div>
         ) : null}
+        </div>
+        )}
       </Card>
     </div>
   );
+}
+
+function toYAML(detail: any): string {
+  const lines: string[] = [];
+  lines.push("apiVersion: model.samzong.dev/v1");
+  lines.push("kind: Model");
+  lines.push("metadata:");
+  lines.push(`  name: ${detail.summary.name}`);
+  lines.push(`  namespace: ${detail.summary.namespace}`);
+  if (detail.summary.tags && detail.summary.tags.length) {
+    lines.push("  labels:");
+    detail.summary.tags.forEach((t: string) => lines.push(`    ${t}: "true"`));
+  }
+  lines.push("spec:");
+  lines.push(`  sourceRef: ${detail.summary.sourceRef}`);
+  if (detail.description) {
+    lines.push("  display:");
+    lines.push(`    description: ${detail.description}`);
+  }
+  lines.push("  versions:");
+  detail.versions.forEach((v: any) => {
+    lines.push("  - name: " + v.name);
+    lines.push("    repo: " + v.repo);
+    if (v.revision) lines.push("    revision: " + v.revision);
+    if (v.precision) lines.push("    precision: " + v.precision);
+    lines.push("    state: " + v.desiredState);
+    lines.push("    share:");
+    lines.push("      enabled: " + (v.shareEnabled ? "true" : "false"));
+  });
+  return lines.join("\n");
 }

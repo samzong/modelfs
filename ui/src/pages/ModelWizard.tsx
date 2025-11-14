@@ -3,7 +3,7 @@ import * as Select from "@radix-ui/react-select";
 import Card from "@components/Card";
 import Button from "@components/Button";
 import SectionHeader from "@components/SectionHeader";
-import { models, modelDetails } from "@mocks/data";
+import { client } from "@api/client";
 import { useDataStore } from "@app/dataStore";
 import { useUiState } from "@app/state";
 
@@ -42,6 +42,25 @@ export default function ModelWizardPage() {
     }
   }, [sources, ns]);
 
+  useEffect(() => {
+    if (!isEdit) return;
+    client.getModel(ns, maybeName).then((d) => {
+      setName(d.summary.name);
+      setNs(d.summary.namespace);
+      setSourceRef(d.summary.sourceRef);
+      setDescription(d.description || "");
+      setTags(d.summary.tags || []);
+      setVersions(d.versions.map((v: any) => ({
+        name: v.name,
+        repo: v.repo,
+        revision: v.revision,
+        precision: v.precision as any,
+        desiredState: (v.desiredState || "PRESENT") as any,
+        shareEnabled: !!v.shareEnabled,
+      })));
+    }).catch(() => {});
+  }, [isEdit, ns, maybeName]);
+
   const canNext1 = name.trim() !== "" && sourceRef.trim() !== "";
   const canNext2 = versions.length > 0 && versions.every(v => v.name.trim() !== "" && v.repo.trim() !== "");
 
@@ -63,38 +82,24 @@ export default function ModelWizardPage() {
   }
   function prev() { setStep(step - 1); }
 
-  function save() {
-    const summary = {
+  async function save() {
+    const payload = {
       name,
-      namespace: ns,
       sourceRef,
-      tags,
-      versionsReady: 0,
-      versionsTotal: versions.length,
-      lastSyncTime: new Date().toISOString(),
-      status: "PENDING" as const,
-    };
-    const detail = {
-      summary,
       description,
-      versions: versions.map(v => ({
-        name: v.name,
-        repo: v.repo,
-        desiredState: v.desiredState,
-        shareEnabled: v.shareEnabled,
-        datasetPhase: "PENDING" as const,
-      }))
+      tags,
+      versions: versions.map(v => ({ name: v.name, repo: v.repo, revision: v.revision, precision: v.precision, desiredState: v.desiredState, shareEnabled: v.shareEnabled })),
     };
-    const key = `${ns}/${name}`;
-    const idx = models.findIndex(m => m.namespace === ns && m.name === name);
-    if (idx >= 0) {
-      models[idx] = summary as any;
-      (modelDetails as any)[key] = detail as any;
-    } else {
-      models.push(summary as any);
-      (modelDetails as any)[key] = detail as any;
+    try {
+      if (isEdit) {
+        await client.updateModel(ns, name, { sourceRef, description, tags, versions: payload.versions });
+      } else {
+        await client.createModel(ns, payload);
+      }
+      window.location.href = "/models";
+    } catch (e) {
+      setErrors({ save: String(e) });
     }
-    window.location.href = "/models";
   }
 
   const sourcesFiltered = useMemo(() => sources.filter((s) => s.namespace === ns), [sources, ns]);
@@ -108,12 +113,12 @@ export default function ModelWizardPage() {
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label htmlFor="model-name" className="block text-sm text-gray-600 mb-1">名称</label>
-                  <input id="model-name" className="form-input w-full" value={name} onChange={(e) => setName(e.target.value)} />
+                  <input id="model-name" className={`form-input w-full ${isEdit ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`} value={name} onChange={(e) => setName(e.target.value)} disabled={isEdit} />
                 </div>
                 <div className="flex-1">
                   <label htmlFor="model-ns" className="block text-sm text-gray-600 mb-1">命名空间</label>
                   <Select.Root value={ns} onValueChange={setNs}>
-                    <Select.Trigger id="model-ns" className="border px-3 h-10 rounded-lg w-full text-left">
+                    <Select.Trigger id="model-ns" className={`border px-3 h-10 rounded-lg w-full text-left ${isEdit ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`} disabled={isEdit}>
                       <Select.Value placeholder={ns} />
                     </Select.Trigger>
                     <Select.Content className="bg-white border rounded-lg shadow z-50">
@@ -187,15 +192,33 @@ export default function ModelWizardPage() {
             </div>
           )}
           {step === 3 && (
-            <div className="space-y-3">
-              <div className="text-sm text-gray-600">预览</div>
-              <pre className="bg-muted p-3 rounded-lg text-sm overflow-auto">{JSON.stringify({
-                apiVersion: "model.samzong.dev/v1",
-                kind: "Model",
-                metadata: { name, namespace: ns, labels: tags.reduce((acc, t) => ({ ...acc, [t]: "true" }), {}) },
-                spec: { sourceRef, versions },
-              }, null, 2)}</pre>
-            </div>
+              <div className="space-y-3">
+                <div className="text-sm text-gray-600">预览</div>
+                <pre className="bg-muted p-3 rounded-lg text-sm overflow-auto">{JSON.stringify({
+                  apiVersion: "model.samzong.dev/v1",
+                  kind: "Model",
+                  metadata: { name, namespace: ns, labels: tags.reduce((acc, t) => ({ ...acc, [t]: "true" }), {}) },
+                  spec: { sourceRef, versions },
+                }, null, 2)}</pre>
+                <div className="text-sm text-gray-600">CLI 等效</div>
+                <pre className="bg-muted p-3 rounded-lg text-sm overflow-auto">{`kubectl -n ${ns} apply -f - <<'EOF'
+apiVersion: model.samzong.dev/v1
+kind: Model
+metadata:
+  name: ${name}
+  namespace: ${ns}
+  labels:
+${tags.map(t => `    ${t}: "true"`).join("\n")}
+spec:
+  sourceRef: ${sourceRef}
+  versions:
+${versions.map(v => `  - name: ${v.name}
+    repo: ${v.repo}
+${v.revision ? `    revision: ${v.revision}\n` : ""}${v.precision ? `    precision: ${v.precision}\n` : ""}    state: ${v.desiredState}
+    share:
+      enabled: ${v.shareEnabled}`).join("\n")}
+EOF`}</pre>
+              </div>
           )}
         </Card>
         <Card className="w-64 h-fit">

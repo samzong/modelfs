@@ -1,4 +1,3 @@
-import { modelSources } from "@mocks/data";
 import { useUiState } from "@app/state";
 import Card from "@components/Card";
 import Badge from "@components/Badge";
@@ -7,6 +6,7 @@ import Button from "@components/Button";
 import { useEffect, useMemo, useState } from "react";
 import ConfirmDialog from "@components/ConfirmDialog";
 import { useDataStore } from "@app/dataStore";
+import { Link } from "@tanstack/react-router";
 
 export default function ModelSourcesPage() {
   const ns = useUiState((s) => s.namespace);
@@ -50,13 +50,23 @@ export default function ModelSourcesPage() {
               <tr><td className="p-6 text-gray-500" colSpan={5}>暂无来源</td></tr>
             ) : filtered.map((s, idx) => (
               <tr key={`${s.namespace}/${s.name}`} className={idx % 2 === 0 ? "bg-white" : "bg-muted"}>
-                <td className="p-2">{s.name}</td>
+                <td className="p-2">
+                  <Link to={`/modelsources/${s.namespace}/${s.name}`} className="text-primary-700 hover:underline">{s.name}</Link>
+                </td>
                 <td className="p-2">{s.type}</td>
                 <td className="p-2">{s.secretRef || "-"}</td>
                 <td className="p-2">{s.credentialsReady ? <span className="px-2 py-1 rounded-lg bg-green-100 text-green-800 text-sm">就绪</span> : s.credentialsStatus || "未知"}</td>
                 <td className="p-2">{s.referencedModels?.length ? s.referencedModels?.join(", ") : "-"}</td>
                 <td className="p-2">
-                  <Button size="sm" variant="danger" onClick={() => onDelete(s.name)} disabled={!!(s.referencedModels && s.referencedModels.length > 0)}>删除</Button>
+                  <div className="flex gap-2">
+                    <Link to={`/modelsources/${s.namespace}/${s.name}`}>
+                      <Button size="sm" variant="outline">查看</Button>
+                    </Link>
+                    <Link to={`/modelsources/${s.namespace}/${s.name}/edit`}>
+                      <Button size="sm" variant="secondary">编辑</Button>
+                    </Link>
+                    <Button size="sm" variant="danger" onClick={() => onDelete(s.name)} disabled={!!(s.referencedModels && s.referencedModels.length > 0)}>删除</Button>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -35,6 +35,7 @@ type ModelVersionView struct {
 	DatasetPhase    Phase  `json:"datasetPhase"`
 	PVCName         string `json:"pvcName,omitempty"`
 	ObservedHash    string `json:"observedHash,omitempty"`
+	ObservedStorage string `json:"observedStorage,omitempty"`
 }
 
 type ModelDetail struct {
