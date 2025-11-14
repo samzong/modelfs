@@ -13,9 +13,11 @@ export default function Layout() {
         </nav>
       </aside>
       <main className="flex-1">
-        <header className="flex items-center justify-between border-b bg-white p-4">
-          <div className="text-gray-700">Cluster: in-cluster</div>
-          <NamespaceSelector />
+        <header className="flex items-center border-b bg-white p-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Namespace</span>
+            <NamespaceSelector />
+          </div>
         </header>
         <section className="page-container">
           <Outlet />

@@ -11,7 +11,7 @@ export default [
     languageOptions: {
       parser,
       parserOptions: { ecmaVersion: "latest", sourceType: "module" },
-      globals: { document: true, window: true },
+      globals: { document: true, window: true, fetch: true, RequestInit: true, EventSource: true },
     },
     plugins: {
       "@typescript-eslint": tseslint,
@@ -21,6 +21,7 @@ export default [
     rules: {
       "react/react-in-jsx-scope": "off",
       "no-unused-vars": "off",
+      "no-empty": "off",
     },
   },
   {

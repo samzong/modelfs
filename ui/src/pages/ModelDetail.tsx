@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { modelDetails } from "@mocks/data";
+import { useEffect, useState } from "react";
+import { client } from "@api/client";
 import { useUiState } from "@app/state";
 import Card from "@components/Card";
 import Badge from "@components/Badge";
@@ -7,10 +7,10 @@ import Badge from "@components/Badge";
 export default function ModelDetailPage() {
   const ns = useUiState((s) => s.namespace);
   const name = window.location.pathname.split("/").slice(-1)[0];
-  const key = `${ns}/${name}`;
-  const detail = useMemo(() => modelDetails[key], [key]);
+  const [detail, setDetail] = useState<any>(null);
+  useEffect(() => { client.getModel(ns, name).then(setDetail).catch(() => setDetail(null)); }, [ns, name]);
   const [expanded, setExpanded] = useState<string | null>(null);
-  if (!detail) return <div>未找到模型</div>;
+  if (!detail) return <div className="card p-4">加载中...</div>;
   return (
     <div className="space-y-4">
       <Card>
