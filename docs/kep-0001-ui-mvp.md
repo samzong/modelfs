@@ -1,5 +1,10 @@
 # modelfs UI MVP Design
 
+## Status
+
+- **Stage**: Implemented (React SPA under `ui/`, Go gateway under `cmd/ui-server/`, and Helm deployment in `charts/modelfs/templates/ui-*`).
+- **Last Reviewed**: 2024-06-24
+
 ## Objective & Scope
 
 Deliver a thin web console that surfaces the state of `Model` and `ModelSource` CRDs (see `api/v1/model_types.go` and `api/v1/modelsource_types.go`) and enables basic CRUD without forcing operators back to `kubectl`. Every interaction is scoped to a single namespace selected upfront—no cross-namespace dashboards. The MVP must cover:
@@ -69,6 +74,6 @@ Deliver a thin web console that surfaces the state of `Model` and `ModelSource` 
 
 **Immediate follow-ups**
 
-- [ ] Prototype backend skeleton under `cmd/ui-server/` using existing module deps.
-- [ ] Extend Helm chart with UI deployment + service account + ClusterRole.
-- [ ] Build Models list + detail views with mock data to validate UX before wiring live watches.
+- [x] Prototype backend skeleton under `cmd/ui-server/` using existing module deps.
+- [x] Extend Helm chart with UI deployment + service account + ClusterRole.
+- [x] Build Models list + detail views with mock data to validate UX before wiring live watches.
