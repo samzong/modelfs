@@ -1,3 +1,5 @@
+<a href="https://deepwiki.com/samzong/MacMusicPlayer"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+
 # modelfs
 
 `modelfs` is a Kubernetes operator for declarative llm model weight management, built on [BaizeAI/dataset](https://github.com/BaizeAI/dataset).
