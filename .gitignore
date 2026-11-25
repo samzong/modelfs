@@ -65,6 +65,9 @@ $RECYCLE.BIN/
 
 # Build artifacts
 dist/
+!pkg/ui/static/dist/
+pkg/ui/static/dist/*
+!pkg/ui/static/dist/.gitkeep
 build/
 *.tar.gz
 *.zip

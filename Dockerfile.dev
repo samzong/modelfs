@@ -15,9 +15,16 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build binary
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
-    -ldflags "-s -w -X main.version=dev -X main.commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown) -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG DATE=unknown
+
+RUN commit="${COMMIT}"; \
+    if [ "${commit}" = "unknown" ]; then commit="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"; fi; \
+    build_date="${DATE}"; \
+    if [ "${build_date}" = "unknown" ]; then build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; fi; \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${commit} -X main.date=${build_date}" \
     -trimpath \
     -a -o ./manager ./main.go
 

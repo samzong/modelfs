@@ -37,6 +37,7 @@ dockers_v2: []
 # GitHub release configuration
 release:
   mode: replace
+  prerelease: auto
   header: |
     ## {{ .ProjectName }} {{ .Tag }}
   footer: |

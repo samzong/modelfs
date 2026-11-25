@@ -2,10 +2,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"io"
 	"os"
+	"runtime/debug"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -19,6 +20,7 @@ import (
 	datasetv1alpha1 "github.com/BaizeAI/dataset/api/dataset/v1alpha1"
 	modelv1 "github.com/samzong/modelfs/api/v1"
 	"github.com/samzong/modelfs/controllers"
+	versionpkg "github.com/samzong/modelfs/internal/version"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -27,6 +29,9 @@ import (
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
+	version  = "dev"
+	commit   = "unknown"
+	date     = "unknown"
 )
 
 func init() {
@@ -36,42 +41,72 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
-func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var probeAddr string
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
+type managerConfig struct {
+	metricsAddr          string
+	enableLeaderElection bool
+	probeAddr            string
+	showVersion          bool
+	zapOpts              zap.Options
+}
+
+func parseManagerConfig(fs *flag.FlagSet, args []string) (managerConfig, error) {
+	cfg := managerConfig{
+		zapOpts: zap.Options{
+			Development: true,
+		},
+	}
+	fs.StringVar(&cfg.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	fs.StringVar(&cfg.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	fs.BoolVar(&cfg.enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	opts := zap.Options{
-		Development: true,
+	fs.BoolVar(&cfg.showVersion, "version", false, "Print version information and exit.")
+	cfg.zapOpts.BindFlags(fs)
+	if err := fs.Parse(args); err != nil {
+		return managerConfig{}, err
 	}
-	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
+	return cfg, nil
+}
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+func runManager(
+	args []string,
+	stdout io.Writer,
+	fs *flag.FlagSet,
+	readBuildInfo func() (*debug.BuildInfo, bool),
+	start func(managerConfig) error,
+) error {
+	cfg, err := parseManagerConfig(fs, args)
+	if err != nil {
+		return err
+	}
+	if cfg.showVersion {
+		_, err := fmt.Fprintln(stdout, versionpkg.Info{Version: version, Commit: commit, Date: date}.Format(readBuildInfo))
+		return err
+	}
+	return start(cfg)
+}
+
+func startManager(cfg managerConfig) error {
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&cfg.zapOpts)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
+		Metrics:                metricsserver.Options{BindAddress: cfg.metricsAddr},
+		HealthProbeBindAddress: cfg.probeAddr,
+		LeaderElection:         cfg.enableLeaderElection,
 		LeaderElectionID:       "modelfs.samzong.dev",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+		return err
 	}
 
-	// Setup controllers
 	if err = (&controllers.ModelReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Model")
-		os.Exit(1)
+		return err
 	}
 
 	if err = (&controllers.ModelSourceReconciler{
@@ -79,22 +114,29 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ModelSource")
-		os.Exit(1)
+		return err
 	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
+		return err
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
+		return err
 	}
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
+		return err
+	}
+	return nil
+}
+
+func main() {
+	if err := runManager(os.Args[1:], os.Stdout, flag.CommandLine, nil, startManager); err != nil {
 		os.Exit(1)
 	}
 }
