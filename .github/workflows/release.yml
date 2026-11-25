@@ -5,19 +5,97 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to verify and publish
+        required: true
+        type: string
 
 permissions:
   contents: write
   packages: write
   id-token: write
 
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  RELEASE_REF: refs/tags/${{ inputs.tag || github.ref_name }}
+
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
+      version: ${{ steps.meta.outputs.version }}
+      commit: ${{ steps.meta.outputs.commit }}
+      date: ${{ steps.meta.outputs.date }}
+      modelfs_tags: ${{ steps.meta.outputs.modelfs_tags }}
+      modelfs_ui_server_tags: ${{ steps.meta.outputs.modelfs_ui_server_tags }}
+    steps:
+      - name: Verify SemVer release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((alpha|beta|rc)\.[1-9][0-9]*))?$ ]]; then
+            echo "::error::Invalid SemVer release tag: $RELEASE_TAG"
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_REF }}
+          fetch-depth: 0
+          tags: true
+
+      - name: Verify tagged commit and resolve release metadata
+        id: meta
+        shell: bash
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          if [[ "$(git rev-parse HEAD)" != "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" ]]; then
+            echo "::error::Checked out commit does not match tag $RELEASE_TAG"
+            exit 1
+          fi
+          is_prerelease="false"
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            is_prerelease="true"
+          fi
+          owner="$(printf '%s' "$REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          {
+            echo "is_prerelease=${is_prerelease}"
+            echo "version=${RELEASE_TAG#v}"
+            echo "commit=$(git rev-parse HEAD)"
+            echo "date=$(git show -s --format=%cI HEAD)"
+            for name in modelfs modelfs-ui-server; do
+              key="${name//-/_}_tags"
+              echo "${key}<<EOF"
+              echo "ghcr.io/${owner}/${name}:${RELEASE_TAG}"
+              if [[ "$is_prerelease" != "true" ]]; then
+                echo "ghcr.io/${owner}/${name}:latest"
+              fi
+              echo "EOF"
+            done
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run tests
+        run: go test -race ./...
+
   build-controller-image:
     runs-on: ubuntu-latest
+    needs: verify
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.RELEASE_REF }}
           fetch-depth: 0
           tags: true
 
@@ -40,16 +118,20 @@ jobs:
           file: Dockerfile.dev
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/modelfs:${{ github.ref_name }}
-            ghcr.io/${{ github.repository_owner }}/modelfs:latest
+          tags: ${{ needs.verify.outputs.modelfs_tags }}
+          build-args: |
+            VERSION=${{ needs.verify.outputs.version }}
+            COMMIT=${{ needs.verify.outputs.commit }}
+            DATE=${{ needs.verify.outputs.date }}
 
   build-ui-server-image:
     runs-on: ubuntu-latest
+    needs: verify
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.RELEASE_REF }}
           fetch-depth: 0
           tags: true
 
@@ -83,31 +165,36 @@ jobs:
           file: cmd/ui-server/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/modelfs-ui-server:${{ github.ref_name }}
-            ghcr.io/${{ github.repository_owner }}/modelfs-ui-server:latest
+          tags: ${{ needs.verify.outputs.modelfs_ui_server_tags }}
+          build-args: |
+            VERSION=${{ needs.verify.outputs.version }}
+            COMMIT=${{ needs.verify.outputs.commit }}
+            DATE=${{ needs.verify.outputs.date }}
 
   goreleaser:
     runs-on: ubuntu-latest
-    needs: [build-controller-image, build-ui-server-image]
+    needs: [verify, build-controller-image, build-ui-server-image]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.RELEASE_REF }}
           fetch-depth: 0
           tags: true
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
+          cache: true
 
       - name: Run GoReleaser (no docker)
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: v2
+          version: "~> v2"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          GORELEASER_CURRENT_TAG: ${{ env.RELEASE_TAG }}

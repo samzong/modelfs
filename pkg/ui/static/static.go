@@ -2,6 +2,5 @@ package static
 
 import "embed"
 
-//go:embed dist/* dist/assets/*
+//go:embed all:dist
 var Files embed.FS
-
